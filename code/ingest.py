@@ -1,0 +1,404 @@
+"""Ingestion utilities extracted from Ingest_notebook.ipynb.
+
+This module keeps the notebook logic intact and adds only readability annotations.
+"""
+
+import os
+from pathlib import Path
+
+import pandas as pd
+import requests
+
+from code.utils import find_hash_columns, get_project_context, make_uuid
+
+
+# ========================================================================
+# KOBO IMPORT AND PREP FUNCTIONS
+# ========================================================================
+def get_kobo_data(BASE_URL, ASSET_ID, API_KEY):
+    """
+    Fetches Kobo survey data and returns a DataFrame. If GROUP_BY is specified, it will allow for repeat groups, using the name of the group.
+
+    """
+
+    def get_kobo_meta(BASE_URL, ASSET_ID, API_KEY):
+
+        url = f"{BASE_URL}{ASSET_ID}/valid_content/"
+
+        response = requests.get(
+            url,
+            headers={"Authorization": f"Token {API_KEY}",
+                    "Accept": "application/json"}
+            )
+
+        def extract_label(value):
+            """Return the first usable label from Kobo's variable label formats."""
+            if value is None:
+                return None
+
+            if isinstance(value, str):
+                cleaned = value.strip()
+                return cleaned or None
+
+            if isinstance(value, dict):
+                for v in value.values():
+                    if isinstance(v, str) and v.strip():
+                        return v.strip()
+                return None
+
+            if isinstance(value, list):
+                for v in value:
+                    if isinstance(v, str) and v.strip():
+                        return v.strip()
+                    if isinstance(v, dict):
+                        nested = extract_label(v)
+                        if nested:
+                            return nested
+                return None
+
+            return None
+
+        def get_questions_df(data):
+            survey = data["data"]["survey"]
+
+            rows = []
+            for q in survey:
+                    rows.append({
+                        "name": q.get("name"),
+                        "type": q.get("type"),
+                        "label": extract_label(q.get("label")),
+                        "required": q.get("required", False),
+                        "list_name": q.get("select_from_list_name"),
+                        "relevant": q.get("relevant"),
+                        "calculation": q.get("calculation")
+                    })
+
+            return pd.DataFrame(rows)
+
+        def get_choices_df(data):
+            choices = data["data"]["choices"]
+
+            rows = []
+            for c in choices:
+                rows.append({
+                    "list_name": c.get("list_name"),
+                    "choice_name": c.get("name"),
+                    "label": extract_label(c.get("label")),
+                })
+
+            return pd.DataFrame(rows)
+
+        qdf = get_questions_df(response.json())
+        cdf = get_choices_df(response.json())
+
+        return qdf, cdf
+
+    url = f"{BASE_URL}{ASSET_ID}/data/"
+
+    qdf, cdf = get_kobo_meta(BASE_URL, ASSET_ID, API_KEY)
+
+    if qdf['type'].str.startswith('begin_repeat').any():
+        if qdf['type'].str.startswith('begin_repeat').sum() > 1:
+            raise ValueError("Multiple repeat groups detected. This function currently only supports one repeat group.")
+        else:
+            GROUP_BY = qdf[qdf['type'].str.startswith('begin_repeat')]['name'].values[0]
+
+    response = requests.get(
+        url,
+        headers={"Authorization": f"Token {API_KEY}",
+                 "Accept": "application/json"}
+    )
+
+    response = response.json()
+
+    if 'GROUP_BY' in locals():
+        df = pd.json_normalize(response['results'], record_path=GROUP_BY, meta=[elem for elem in response['results'][0].keys() if elem != GROUP_BY])
+        df.columns = df.columns.str.replace(f"{GROUP_BY}/", '', regex=False)
+
+    else:
+        df = pd.json_normalize(response['results'])
+
+    form_id = df['_xform_id_string'].unique()
+
+    if len(form_id) > 1:
+        raise ValueError("Multiple form IDs detected. This function currently only supports one form ID.")
+
+    qdf['form_id'] = form_id[0]
+    cdf['form_id'] = form_id[0]
+    df = df.rename(columns={'_xform_id_string': 'form_id'})
+
+    return df, qdf, cdf
+
+
+def import_data(file_path):
+
+    if file_path.endswith('.xls') or file_path.endswith('.xlsx'):
+        df = pd.read_excel(file_path)
+    elif file_path.endswith('.csv'):
+        for sep in [',', ';']:
+                try:
+                    df = pd.read_csv(file_path, sep=sep)
+                    # basic sanity check: more than 1 column
+                    if df.shape[1] > 1:
+                        return df
+                except Exception:
+                    pass
+        raise ValueError("Could not detect delimiter")
+    else:
+        raise ValueError("Unsupported file format. Please provide a .csv, .xls, or .xlsx file.")
+
+    return df
+
+
+def split_multi(df, qdf):
+
+    if not qdf['type'].str.startswith('select_multiple').any():
+        return df
+
+    columns = qdf[qdf['type'].str.startswith('select_multiple')]['name'].values
+
+    # split into columns
+    for col in columns:
+        dummies = df[col].str.get_dummies(sep=" ")
+        dummies.columns = [f"{col}_{subcol}" for subcol in dummies.columns]
+        df = pd.concat([df, dummies], axis=1)
+        df.drop(columns=[col], inplace=True)
+    return df
+
+
+def add_to_log(df, source='kobo'):
+    context = get_project_context(start_path=Path(__file__).resolve())
+    DATA_DIR = context["data_dir"]
+
+    log_path = f"{DATA_DIR}/import_log.csv"
+
+    if not os.path.exists(log_path):
+        log_df = pd.DataFrame(columns=['form_id', 'survey_name', 'first_submission', 'last_submission', 'rows', 'country', '_uuid_cols', 'logged_at'])
+    else:
+        log_df = pd.read_csv(log_path)
+
+    def parse_kobo_metadata(df):
+
+        form_id = df['form_id'].unique()[0]
+        survey_name = None
+
+        df['_submission_time'] = pd.to_datetime(df['_submission_time'], utc=True, errors='coerce').dt.floor('min').dt.tz_localize(None)
+
+        first_submission = df['_submission_time'].min().floor('min')
+        last_submission = df['_submission_time'].max().floor('min')
+        rows = len(df)
+
+        df_low = df.copy()
+        df_low.columns = df_low.columns.str.lower()
+
+        if 'country' in df_low.columns:
+            if df_low['country'].nunique() > 1:
+                country = 'multiple'
+            else:
+                country = df_low['country'].unique()[0]
+        else:
+            country = None
+
+        metadata = {
+            'form_id': form_id,
+            'survey_name': survey_name,
+            'first_submission': first_submission,
+            'last_submission': last_submission,
+            'rows': rows,
+            'country': country,
+            '_uuid_cols': None
+        }
+
+        return metadata
+
+    def parse_xls_csv_metadata(df):
+
+        if 'form_id' in df.columns:
+            form_id = df['form_id'].unique()[0]
+        else:
+            form_id = None
+
+        survey_name = None
+        if '_submission_time' not in df.columns:
+
+            cols = df.columns.str.lower()
+
+            if any(col in cols for col in ['date', 'submission_date', 'timestamp']):
+                date_col = next(col for col in df.columns if col.lower() in ['date', 'submission_date', 'timestamp'])
+                df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
+                df['_submission_time'] = df[date_col]
+
+            else:
+                df['_submission_time'] = pd.NaT
+
+        df['_submission_time'] = pd.to_datetime(df['_submission_time'], utc=True, errors='coerce').dt.floor('min').dt.tz_localize(None)
+
+        first_submission = pd.to_datetime(df['_submission_time'].min(), errors='coerce').floor('min')
+        last_submission = pd.to_datetime(df['_submission_time'].max(), errors='coerce').floor('min')
+
+        rows = len(df)
+
+        df_low = df.copy()
+        df_low.columns = df_low.columns.str.lower()
+
+        if 'country' in df_low.columns:
+            if df_low['country'].nunique() > 1:
+                country = 'multiple'
+            else:
+                country = df_low['country'].unique()[0]
+        else:
+            country = None
+
+        metadata = {
+            'form_id': form_id,
+            'survey_name': survey_name,
+            'first_submission': first_submission,
+            'last_submission': last_submission,
+            'rows': rows,
+            'country': country,
+            '_uuid_cols': None
+        }
+
+        return metadata
+
+    if source == 'kobo':
+        metadata = parse_kobo_metadata(df)
+    else:
+        metadata = parse_xls_csv_metadata(df)
+
+    if metadata['form_id'] is None:
+        metadata['form_id'] = input("No form ID found in the data. Please enter a form ID to use for logging purposes. if this form has been used previously, use the same form ID to link the datasets. Form ID: ")
+
+    if metadata['form_id'] in log_df['form_id'].values:
+        print(f"Form ID {metadata['form_id']} already exists in the log. Processed data will be added to the existing dataset.")
+
+        metadata['survey_name'] = log_df[log_df['form_id'] == metadata['form_id']]['survey_name'].values[0]
+        metadata['country'] = log_df[log_df['form_id'] == metadata['form_id']]['country'].values[0]
+        metadata['first_submission'] = log_df[log_df['form_id'] == metadata['form_id']]['first_submission'].values[0]
+        metadata['last_submission'] = log_df[log_df['form_id'] == metadata['form_id']]['last_submission'].values[0]
+        metadata['_uuid_cols'] = log_df[log_df['form_id'] == metadata['form_id']]['_uuid_cols'].values[0]
+
+    else:
+        print(f"Form ID {metadata['form_id']} added to log. Processed data will be saved as a new file.")
+
+        metadata['survey_name'] = input("Please enter the survey name: ")
+
+        if metadata['country'] is None:
+            metadata['country'] = input("Please enter the country name for this survey (multiple if applicable): ")
+
+        if metadata['first_submission'] is pd.NaT:
+            date_input = input("No submission time found. Please enter the date of the first submission (YYYY-MM-DD) or leave blank: ")
+            if date_input:
+                metadata['first_submission'] = pd.to_datetime(date_input, errors='coerce')
+            else:
+                metadata['first_submission'] = pd.NaT
+
+        if metadata['last_submission'] is pd.NaT:
+            date_input = input("No submission time found. Please enter the date of the last submission (YYYY-MM-DD) or leave blank: ")
+            if date_input:
+                if metadata['first_submission'] is not pd.NaT and pd.to_datetime(date_input, errors='coerce') < metadata['first_submission']:
+                    print("Last submission date cannot be before first submission date. Please enter a valid date.")
+                    date_input = input("Please enter the date of the last submission (YYYY-MM-DD) or leave blank: ")
+                metadata['last_submission'] = pd.to_datetime(date_input, errors='coerce')
+            else:
+                metadata['last_submission'] = pd.NaT
+
+    log_df = pd.concat([log_df, pd.DataFrame([metadata])], ignore_index=True)
+
+    log_df['logged_at'] = pd.to_datetime(log_df['logged_at'], errors='coerce')
+
+    log_df.loc[log_df.index[-1], 'logged_at'] = pd.Timestamp.now().floor('min')
+
+    log_df.to_csv(log_path, index=False)
+
+    print("Metadata added to log:")
+    print(metadata)
+
+    return metadata, log_df
+
+
+# ========================================================================
+# DATASET OBJECT AND IDENTIFIER HELPERS
+# ========================================================================
+class DataSet:
+    def __init__(self, df, qdf, cdf, metadata):
+        self.df = df
+        self.qdf = qdf
+        self.cdf = cdf
+        self.metadata = metadata
+
+    def split_multi(self):
+        df = self.df.copy()
+
+        if not self.qdf['type'].str.startswith('select_multiple').any():
+            return DataSet(df, self.qdf, self.cdf, self.metadata)
+
+        columns = self.qdf[self.qdf['type'].str.startswith('select_multiple')]['name'].values
+
+        # split into columns
+        for col in columns:
+            dummies = df[col].str.get_dummies(sep=" ")
+            dummies.columns = [f"{col}_{subcol}" for subcol in dummies.columns]
+            df = pd.concat([df, dummies], axis=1)
+            df.drop(columns=[col], inplace=True)
+
+        return DataSet(df, self.qdf, self.cdf, self.metadata)
+
+
+def add_uid(df):
+    if ['name', 'child_name', 'parent_name', 'student_name', 'teacher_name'] in df.columns.str.lower.str.replace(" ", "_"):
+        if 'uid' not in df.columns:
+            print("")
+            df['uid'] = pd.util.hash_pandas_object(df, index=False).astype(str)
+
+
+def add_uuid(dataset, hash_cols):
+
+    if '_uuid' in dataset.df.columns:
+        print("UUID column already exists. Skipping UUID generation.")
+        return dataset
+
+    elif dataset.metadata['_uuid_cols'] is not None:
+        hash_cols = dataset.metadata['_uuid_cols'].split(",")
+        print(f"Using previously logged hash columns for UUID generation: {hash_cols}")
+
+    else:
+        hash_cols = find_hash_columns(dataset.df)
+
+    if len(hash_cols) > 5:
+        print("UID depends on many columns – may be unstable")
+
+    dataset.df["_uuid"] = dataset.df.apply(
+        lambda row: make_uuid(row, hash_cols),
+        axis=1
+        )
+
+    dataset.df["_uuid_cols"] = ",".join(hash_cols)
+
+    return dataset
+
+
+# ========================================================================
+# PUBLIC BUILDER ENTRYPOINT
+# ========================================================================
+def build_dataset(BASE_URL=None, ASSET_ID=None, API_KEY=None, file_path=None):
+
+    # If file_path is provided, import data from file. Otherwise, fetch data from Kobo API.
+    if file_path:
+        df = import_data(file_path)
+        metadata, _ = add_to_log(df, source='file')
+        df['_submission_time'] = df['_submission_time'].fillna(metadata['last_submission'])
+        print("Data imported from file. Kobo metadata functions will be skipped (question dataframe and choices dataframe). Only basic metadata will be logged.")
+        dataset = DataSet(df, None, None, metadata)
+        dataset = add_uuid(dataset, hash_cols=None)
+        return dataset
+
+    if not all([BASE_URL, ASSET_ID, API_KEY]):
+        raise ValueError("BASE_URL, ASSET_ID, and API_KEY must be provided if file_path is not specified.")
+
+    df, qdf, cdf = get_kobo_data(BASE_URL, ASSET_ID, API_KEY)
+    metadata, _ = add_to_log(df, source='kobo')
+    print("Data fetched from Kobo API and metadata logged including question and choice dataframes (.qdf and .cdf).")
+    dataset = DataSet(df, qdf, cdf, metadata)
+    dataset = add_uuid(dataset, hash_cols=None)
+    return dataset

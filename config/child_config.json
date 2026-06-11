@@ -1,0 +1,150 @@
+{
+  "indicators": [
+    {
+      "id": "haldo_self_concept",
+      "level": "child",
+      "agg_type": "calculated",
+      "calc": {
+        "op": "mean",
+        "columns": [
+          "selname",
+          "selage",
+          "selcg",
+          "selcomm",
+          "selgeo",
+          "selhope1",
+          "selhope1stop",
+          "selhope1sup",
+          "selhope2",
+          "selhope2stop",
+          "selhope2sup"
+        ]
+      },
+      "agg_method": "mean"
+    },
+    {
+      "id": "haldo_empathy",
+      "level": "child",
+      "agg_type": "calculated",
+      "calc": {
+        "op": "mean",
+        "columns": [
+          "selsad",
+          "selbetter1",
+          "selbetter2",
+          "selreason",
+          "selfeel"
+        ]
+      },
+      "agg_method": "mean"
+    },
+    {
+      "id": "haldo_sel",
+      "level": "child",
+      "agg_type": "aggregate",
+      "calc": {
+        "op": "mean",
+        "columns": [
+          "haldo_self_concept",
+          "haldo_empathy"
+        ]
+      },
+      "agg_method": "mean"
+    },
+    {
+      "id": "haldo_expressive_language",
+      "level": "child",
+      "agg_type": "calculated",
+      "calc": {
+        "op": "divide",
+        "columns": ["litexpl1"],
+        "by": 10
+      },
+      "agg_method": "mean"
+    },
+    {
+      "id": "haldo_letter_identification",
+      "level": "child",
+      "agg_type": "calculated",
+      "calc": {
+        "op": "divide",
+        "columns": ["ltr_row1", "ltr_row2"],
+        "sum": true,
+        "by": 10
+      },
+      "agg_method": "mean"
+    },
+    {
+      "id": "haldo_accuracy",
+      "level": "child",
+      "agg_type": "calculated",
+      "calc": {
+        "op": "divide",
+        "columns": ["litword_eng"],
+        "by": 55
+      },
+      "agg_method": "mean"
+    },
+    {
+      "id": "haldo_comprehension",
+      "level": "child",
+      "agg_type": "calculated",
+      "calc": {
+        "op": "divide",
+        "columns": ["litcomp_eng"],
+        "by": 5
+      },
+      "agg_method": "mean"
+    },
+    {
+      "id": "haldo_literacy",
+      "level": "child",
+      "agg_type": "aggregate",
+      "calc": {
+        "op": "mean",
+        "columns": [
+          "haldo_expressive_language",
+          "haldo_letter_identification",
+          "haldo_accuracy",
+          "haldo_comprehension"
+        ]
+      },
+      "agg_method": "mean",
+      "missing_handling": "skip"
+    },
+    {
+    "id": "aser_literacy",
+    "agg_type": "calculated",
+    "label": "Literacy (ASER reading level)",
+    "calc": {
+      "op": "max",
+      "columns": [
+        "reading_letter",
+        "reading_word",
+        "reading_sentence",
+        "reading_paragraph",
+        "reading_comprehension"
+      ]
+    },
+    "agg_method": "max",
+    "missing_handling": "skip"
+  },
+  {
+    "id": "aser_numeracy",
+    "agg_type": "calculated",
+    "label": "Numeracy (ASER maths level)",
+    "calc": {
+      "op": "max",
+      "columns": [
+        "maths_numrec",
+        "maths_numrec2",
+        "maths_subtraction",
+        "maths_division"
+      ]
+    },
+    "agg_method": "max",
+    "missing_handling": "skip"
+  }
+
+  ]
+}

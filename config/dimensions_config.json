@@ -1,0 +1,124 @@
+{
+  "dimensions": [
+    {
+      "id": "admin0",
+      "type": "categorical",
+      "columns": [
+        "country",
+        "country_name",
+        "nation",
+        "location_country"
+      ],
+      "level": 0
+    },
+    {
+      "id": "admin1",
+      "type": "categorical",
+      "columns": [
+        "admin1",
+        "region",
+        "state",
+        "province",
+        "governorate",
+        "governorate_name",
+        "county",
+        "zone",
+        "department",
+        "oblast",
+        "prefecture",
+        "division",
+        "region_name",
+        "state_name",
+        "province_name"
+      ],
+      "level": 1
+    },
+    {
+      "id": "admin2",
+      "type": "categorical",
+      "columns": [
+        "admin2",
+        "district",
+        "county",
+        "subcounty",
+        "municipality",
+        "city",
+        "borough",
+        "arrondissement",
+        "district_name",
+        "county_name",
+        "local_government_area",
+        "lga"
+      ],
+      "level": 2
+    },
+    {
+      "id": "admin3",
+      "type": "categorical",
+      "columns": [
+        "admin3",
+        "ward",
+        "village",
+        "subdistrict",
+        "community",
+        "parish",
+        "sector",
+        "cell",
+        "block",
+        "ward_name",
+        "village_name",
+        "community_name"
+      ],
+      "level": 3
+    },
+    {
+      "id": "location",
+      "type": "categorical",
+      "columns": ["location"],
+      "values": ["urban", "rural"]
+    },
+    {
+      "id": "protection_status",
+      "type": "categorical",
+      "columns": ["protection_status"]
+    },
+    {
+      "id": "school",
+      "type": "categorical",
+      "columns": ["school", "school_name"]
+    },
+    {
+      "id": "sex",
+      "type": "categorical",
+      "columns": ["sex", "gender", "child_sex", "child_gender"],
+      "values": ["male", "female"]
+    },
+    {
+      "id": "age",
+      "type": "numeric",
+      "columns": ["age", "child_age"]
+    },
+    {
+      "id": "disability",
+      "type": "categorical",
+      "columns": ["disability_status"],
+      "values": ["disability", "no_disability"]
+    },
+    {
+      "id": "grade",
+      "type": "numeric",
+      "columns": ["grade"]
+    },
+    {
+    "id": "age_group",
+    "type": "derived",
+    "columns": ["age", "child_age"],
+    "operation": "bin",
+    "bins": [
+        { "min": 0, "max": 5, "label": "0-5" },
+        { "min": 6, "max": 10, "label": "6-10" },
+        { "min": 11, "max": 14, "label": "11-14" }
+    ]
+    }
+  ]
+}
