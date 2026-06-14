@@ -1,5 +1,6 @@
 {
   "data_dir": "data",
+  "input_dir": "data/input",
   "output_dir": "data/output",
   "config_dir": "config"
 }

@@ -9,7 +9,7 @@
         "nation",
         "location_country"
       ],
-      "level": 0
+      "agg_method": "first"
     },
     {
       "id": "admin1",
@@ -31,7 +31,7 @@
         "state_name",
         "province_name"
       ],
-      "level": 1
+      "agg_method": "first"
     },
     {
       "id": "admin2",
@@ -50,7 +50,7 @@
         "local_government_area",
         "lga"
       ],
-      "level": 2
+      "agg_method": "first"
     },
     {
       "id": "admin3",
@@ -69,45 +69,52 @@
         "village_name",
         "community_name"
       ],
-      "level": 3
+      "agg_method": "first"
     },
     {
       "id": "location",
       "type": "categorical",
       "columns": ["location"],
-      "values": ["urban", "rural"]
+      "values": ["urban", "rural"],
+      "agg_method": "first"
     },
     {
       "id": "protection_status",
       "type": "categorical",
-      "columns": ["protection_status"]
+      "columns": ["protection_status"],
+      "agg_method": "first"
     },
     {
       "id": "school",
       "type": "categorical",
-      "columns": ["school", "school_name"]
+      "columns": ["school", "school_name", "centre", "centre_name", "center", "center_name"],
+      "agg_method": "first"
     },
     {
       "id": "sex",
       "type": "categorical",
       "columns": ["sex", "gender", "child_sex", "child_gender"],
-      "values": ["male", "female"]
+      "values": ["male", "female"],
+      "agg_method": "first"
     },
     {
       "id": "age",
-      "type": "numeric",
-      "columns": ["age", "child_age"]
+      "type": "ordinal",
+      "columns": ["age", "child_age"],
+      "agg_method": "last"
     },
     {
       "id": "disability",
       "type": "categorical",
       "columns": ["disability_status"],
-      "values": ["disability", "no_disability"]
+      "values": ["disability", "no_disability"],
+      "agg_method": "first"
     },
     {
       "id": "grade",
-      "type": "numeric",
-      "columns": ["grade"]
+      "type": "ordinal",
+      "columns": ["grade"],
+      "agg_method": "last"
     },
     {
     "id": "age_group",
@@ -118,7 +125,8 @@
         { "min": 0, "max": 5, "label": "0-5" },
         { "min": 6, "max": 10, "label": "6-10" },
         { "min": 11, "max": 14, "label": "11-14" }
-    ]
+    ],
+    "agg_method": "last"
     }
   ]
 }

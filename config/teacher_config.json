@@ -1,0 +1,116 @@
+{
+  "indicators": [
+  {
+    "id": "time_on_task",
+    "level": "teacher",
+    "type": "numeric",
+    "agg_type": "simple",
+    "columns": ["work"],
+    "agg_method": "mean"
+  },
+  {
+    "id": "class_management_time",
+    "level": "teacher",
+    "type": "numeric",
+    "agg_type": "simple",
+    "columns": ["manage"],
+    "agg_method": "mean"
+  },
+  {
+    "id": "facilitation_time",
+    "level": "teacher",
+    "type": "numeric",
+    "agg_type": "simple",
+    "columns": ["facilitation"],
+    "agg_method": "mean"
+  },
+  {
+    "id": "off_task_behaviour",
+    "level": "teacher",
+    "type": "ordinal",
+    "agg_type": "simple",
+    "columns": ["offtask"],
+    "agg_method": "mean"
+  },
+  {
+    "id": "disruption_level",
+    "level": "teacher",
+    "type": "ordinal",
+    "agg_type": "simple",
+    "columns": ["disc"],
+    "agg_method": "mean"
+  },
+  {
+    "id": "literacy_practice",
+    "level": "teacher",
+    "type": "ordinal",
+    "agg_type": "simple",
+    "columns": ["literacy"],
+    "agg_method": "mean"
+  },
+  {
+    "id": "numeracy_practice",
+    "level": "teacher",
+    "type": "ordinal",
+    "agg_type": "simple",
+    "columns": ["numeracy"],
+    "agg_method": "mean"
+  },
+  {
+    "id": "sel_practice",
+    "level": "teacher",
+    "type": "ordinal",
+    "agg_type": "simple",
+    "columns": ["sel"],
+    "agg_method": "mean"
+  },
+  {
+    "id": "student_teacher_ratio",
+    "level": "teacher",
+    "type": "numeric",
+    "agg_type": "simple",
+    "columns": ["ratio"],
+    "agg_method": "mean"
+  },
+  {
+    "id": "learning_resources",
+    "level": "teacher",
+    "type": "ordinal",
+    "agg_type": "simple",
+    "columns": ["resources"],
+    "agg_method": "mean"
+  },
+  {
+    "id": "gender_responsiveness",
+    "level": "teacher",
+    "type": "ordinal",
+    "agg_type": "simple",
+    "columns": ["gender"],
+    "agg_method": "mean"
+  },
+  {
+    "id": "safe_environment",
+    "level": "teacher",
+    "type": "ordinal",
+    "agg_type": "simple",
+    "columns": ["safe"],
+    "agg_method": "mean"
+  },
+  {
+    "id": "rtl_use",
+    "level": "teacher",
+    "type": "ordinal",
+    "agg_type": "simple",
+    "columns": ["rtl"],
+    "agg_method": "mean"
+  },
+  {
+    "id": "lesson_preparedness",
+    "level": "teacher",
+    "type": "ordinal",
+    "agg_type": "simple",
+    "columns": ["prep"],
+    "agg_method": "mean"
+  }
+]
+}

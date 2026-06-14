@@ -1,10 +1,9 @@
-"""Output utilities extracted from output_notebook.ipynb."""
 
 from pathlib import Path
 
 import pandas as pd
 
-from code.utils import find_hash_columns, get_project_context, make_uuid
+from src.utils import find_hash_columns, get_project_context, make_uuid
 
 
 context = get_project_context(start_path=Path(__file__).resolve())
@@ -37,10 +36,11 @@ def output_df(dataset):
     date_str = dataset.metadata.get("first_submission").strftime("%Y-%m-%d")
     form_id = dataset.metadata.get("form_id")
     country = dataset.metadata.get("country")
+    level = dataset.metadata.get("level")
 
     file_name = form_id + "_" + country + "_" + date_str + ".csv"
 
-    output_path = OUTPUT_DIR / country / file_name
+    output_path = OUTPUT_DIR / country / level / file_name
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     timestamp = pd.Timestamp.now().strftime("%Y-%m-%d_%H-%M-%S")

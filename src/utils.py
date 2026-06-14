@@ -40,16 +40,33 @@ def get_project_context(start_path=None, marker_file="path_config.json"):
 
 
 def find_hash_columns(df):
-    """Find the smallest left-to-right column subset that uniquely identifies rows."""
-    cols = df.columns.tolist()
+    """Select hash columns with a minimum size and a practical upper bound."""
 
-    for i in range(1, len(cols) + 1):
-        subset = cols[:i]
-        if df.duplicated(subset=subset).sum() == 0:
-            return subset
+    min_cols = 3
+    max_cols = min(12, len(df.columns))
 
-    # fallback: all columns (still may not be unique!)
-    return cols
+    def score_column(col):
+        series = df[col]
+        unique_ratio = series.nunique(dropna=False) / max(len(df), 1)
+        missing_ratio = series.isna().mean()
+        return (unique_ratio - missing_ratio, unique_ratio, col)
+
+    cols = sorted(df.columns, key=score_column, reverse=True)
+
+    selected = []
+    for col in cols:
+        if len(selected) >= max_cols:
+            break
+
+        selected.append(col)
+
+        # Require a minimum number of columns for future-proofing.
+        if len(selected) >= min_cols and df.duplicated(subset=selected).sum() == 0:
+            return selected
+
+    # If strict uniqueness still is not met, return capped columns.
+    return selected
+
 
 
 def make_uuid(row, hash_cols):

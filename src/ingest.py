@@ -1,7 +1,3 @@
-"""Ingestion utilities extracted from Ingest_notebook.ipynb.
-
-This module keeps the notebook logic intact and adds only readability annotations.
-"""
 
 import os
 from pathlib import Path
@@ -9,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 import requests
 
-from code.utils import find_hash_columns, get_project_context, make_uuid
+from src.utils import find_hash_columns, get_project_context, make_uuid
 
 
 # ========================================================================
@@ -166,18 +162,20 @@ def split_multi(df, qdf):
     return df
 
 
-def add_to_log(df, source='kobo'):
+def add_to_log(df, source='kobo', metadata_overrides=None, interactive=True):
     context = get_project_context(start_path=Path(__file__).resolve())
     DATA_DIR = context["data_dir"]
+    metadata_overrides = metadata_overrides or {}
 
     log_path = f"{DATA_DIR}/import_log.csv"
 
     if not os.path.exists(log_path):
-        log_df = pd.DataFrame(columns=['form_id', 'survey_name', 'first_submission', 'last_submission', 'rows', 'country', '_uuid_cols', 'logged_at'])
+        log_df = pd.DataFrame(columns=['form_id', 'survey_name', 'level', 'first_submission', 'last_submission', 'rows', 'country', '_uuid_cols', 'logged_at'])
     else:
         log_df = pd.read_csv(log_path)
 
     def parse_kobo_metadata(df):
+        df = df.copy()
 
         form_id = df['form_id'].unique()[0]
         survey_name = None
@@ -202,6 +200,7 @@ def add_to_log(df, source='kobo'):
         metadata = {
             'form_id': form_id,
             'survey_name': survey_name,
+            'level': None,
             'first_submission': first_submission,
             'last_submission': last_submission,
             'rows': rows,
@@ -212,6 +211,7 @@ def add_to_log(df, source='kobo'):
         return metadata
 
     def parse_xls_csv_metadata(df):
+        df = df.copy()
 
         if 'form_id' in df.columns:
             form_id = df['form_id'].unique()[0]
@@ -252,6 +252,7 @@ def add_to_log(df, source='kobo'):
         metadata = {
             'form_id': form_id,
             'survey_name': survey_name,
+            'level': None,
             'first_submission': first_submission,
             'last_submission': last_submission,
             'rows': rows,
@@ -267,12 +268,18 @@ def add_to_log(df, source='kobo'):
         metadata = parse_xls_csv_metadata(df)
 
     if metadata['form_id'] is None:
-        metadata['form_id'] = input("No form ID found in the data. Please enter a form ID to use for logging purposes. if this form has been used previously, use the same form ID to link the datasets. Form ID: ")
+        metadata['form_id'] = metadata_overrides.get('form_id')
+        if metadata['form_id'] is None:
+            if interactive:
+                metadata['form_id'] = input("No form ID found in the data. Please enter a form ID to use for logging purposes. if this form has been used previously, use the same form ID to link the datasets. Form ID: ")
+            else:
+                raise ValueError("Missing form_id. Provide metadata_overrides['form_id'] when running non-interactively.")
 
     if metadata['form_id'] in log_df['form_id'].values:
         print(f"Form ID {metadata['form_id']} already exists in the log. Processed data will be added to the existing dataset.")
 
         metadata['survey_name'] = log_df[log_df['form_id'] == metadata['form_id']]['survey_name'].values[0]
+        metadata['level'] = log_df[log_df['form_id'] == metadata['form_id']]['level'].values[0]
         metadata['country'] = log_df[log_df['form_id'] == metadata['form_id']]['country'].values[0]
         metadata['first_submission'] = log_df[log_df['form_id'] == metadata['form_id']]['first_submission'].values[0]
         metadata['last_submission'] = log_df[log_df['form_id'] == metadata['form_id']]['last_submission'].values[0]
@@ -281,24 +288,50 @@ def add_to_log(df, source='kobo'):
     else:
         print(f"Form ID {metadata['form_id']} added to log. Processed data will be saved as a new file.")
 
-        metadata['survey_name'] = input("Please enter the survey name: ")
+        metadata['survey_name'] = metadata_overrides.get('survey_name')
+        if not metadata['survey_name']:
+            if interactive:
+                metadata['survey_name'] = input("Please enter the survey name: ")
+            else:
+                raise ValueError("Missing survey_name. Provide metadata_overrides['survey_name'] when running non-interactively.")
+
+        metadata['level'] = metadata_overrides.get('level')
+        if interactive:
+            while metadata['level'] not in ['child', 'teacher', 'school']:
+                metadata['level'] = input("Please enter the survey level (child, teacher or school): ")
+                if metadata['level'] not in ['child', 'teacher', 'school']:
+                    print("Invalid level. Try again.")
+        elif metadata['level'] not in ['child', 'teacher', 'school']:
+            raise ValueError("Missing or invalid level. Provide metadata_overrides['level'] as one of: child, teacher, school.")
 
         if metadata['country'] is None:
-            metadata['country'] = input("Please enter the country name for this survey (multiple if applicable): ")
+            metadata['country'] = metadata_overrides.get('country')
+            if metadata['country'] is None:
+                if interactive:
+                    metadata['country'] = input("Please enter the country name for this survey (multiple if applicable): ")
+                else:
+                    raise ValueError("Missing country. Provide metadata_overrides['country'] when running non-interactively.")
 
-        if metadata['first_submission'] is pd.NaT:
-            date_input = input("No submission time found. Please enter the date of the first submission (YYYY-MM-DD) or leave blank: ")
+        if pd.isna(metadata['first_submission']):
+            date_input = metadata_overrides.get('first_submission')
+            if date_input is None and interactive:
+                date_input = input("No submission time found. Please enter the date of the first submission (YYYY-MM-DD) or leave blank: ")
             if date_input:
                 metadata['first_submission'] = pd.to_datetime(date_input, errors='coerce')
             else:
                 metadata['first_submission'] = pd.NaT
 
-        if metadata['last_submission'] is pd.NaT:
-            date_input = input("No submission time found. Please enter the date of the last submission (YYYY-MM-DD) or leave blank: ")
+        if pd.isna(metadata['last_submission']):
+            date_input = metadata_overrides.get('last_submission')
+            if date_input is None and interactive:
+                date_input = input("No submission time found. Please enter the date of the last submission (YYYY-MM-DD) or leave blank: ")
             if date_input:
-                if metadata['first_submission'] is not pd.NaT and pd.to_datetime(date_input, errors='coerce') < metadata['first_submission']:
-                    print("Last submission date cannot be before first submission date. Please enter a valid date.")
-                    date_input = input("Please enter the date of the last submission (YYYY-MM-DD) or leave blank: ")
+                if pd.notna(metadata['first_submission']) and pd.to_datetime(date_input, errors='coerce') < metadata['first_submission']:
+                    if interactive:
+                        print("Last submission date cannot be before first submission date. Please enter a valid date.")
+                        date_input = input("Please enter the date of the last submission (YYYY-MM-DD) or leave blank: ")
+                    else:
+                        raise ValueError("last_submission cannot be before first_submission.")
                 metadata['last_submission'] = pd.to_datetime(date_input, errors='coerce')
             else:
                 metadata['last_submission'] = pd.NaT
@@ -343,37 +376,59 @@ class DataSet:
             df.drop(columns=[col], inplace=True)
 
         return DataSet(df, self.qdf, self.cdf, self.metadata)
+    
+    def split_group_name(self):
+        df = self.df.copy()
+        df.columns = df.columns.str.split("/").str[-1]
+
+        return DataSet(df, self.qdf, self.cdf, self.metadata)
 
 
-def add_uid(df):
-    if ['name', 'child_name', 'parent_name', 'student_name', 'teacher_name'] in df.columns.str.lower.str.replace(" ", "_"):
-        if 'uid' not in df.columns:
-            print("")
-            df['uid'] = pd.util.hash_pandas_object(df, index=False).astype(str)
+def drop_child_name_cols(dataset):
+    df = dataset.df.copy()
+
+    # find columns with 'child' or 'name' in them
+    cols_to_drop = [
+        c for c in df.columns.str.lower().str.replace(" ", "_") if c == "child_name" or c == "name"
+    ]
+
+    if cols_to_drop:
+        df = df.drop(columns=cols_to_drop)
+        print(f"Dropped columns: {cols_to_drop} to protect child privacy")
+
+    dataset.df = df
+    return dataset
 
 
-def add_uuid(dataset, hash_cols):
+def add_uuid(dataset):
+    uuid_cols = dataset.metadata.get('_uuid_cols')
 
     if '_uuid' in dataset.df.columns:
         print("UUID column already exists. Skipping UUID generation.")
         return dataset
 
-    elif dataset.metadata['_uuid_cols'] is not None:
-        hash_cols = dataset.metadata['_uuid_cols'].split(",")
+    elif pd.notna(uuid_cols) and uuid_cols != "":
+        hash_cols = uuid_cols.split(",")
         print(f"Using previously logged hash columns for UUID generation: {hash_cols}")
 
     else:
         hash_cols = find_hash_columns(dataset.df)
 
     if len(hash_cols) > 5:
-        print("UID depends on many columns – may be unstable")
+        print(f"UID depends on {len(hash_cols)} columns - may be unstable")
 
-    dataset.df["_uuid"] = dataset.df.apply(
-        lambda row: make_uuid(row, hash_cols),
-        axis=1
-        )
+    frame = dataset.df.copy()
+    key_series = frame[hash_cols].astype("string").fillna("").agg("|".join, axis=1)
+    uuid_series = pd.util.hash_pandas_object(key_series, index=False).astype(str)
 
-    dataset.df["_uuid_cols"] = ",".join(hash_cols)
+    if uuid_series.duplicated().any():
+        dup_counts = key_series.groupby(key_series).cumcount().astype(str)
+        is_dup = key_series.duplicated(keep=False)
+        uuid_series.loc[is_dup] = uuid_series.loc[is_dup] + "_" + dup_counts.loc[is_dup]
+        print("Detected duplicate hash keys; appended duplicate index suffix for uniqueness.")
+
+    frame = frame.assign(_uuid=uuid_series, _uuid_cols=",".join(hash_cols))
+    dataset.df = frame
 
     return dataset
 
@@ -381,24 +436,33 @@ def add_uuid(dataset, hash_cols):
 # ========================================================================
 # PUBLIC BUILDER ENTRYPOINT
 # ========================================================================
-def build_dataset(BASE_URL=None, ASSET_ID=None, API_KEY=None, file_path=None):
+def build_dataset(BASE_URL=None, ASSET_ID=None, API_KEY=None, file_path=None, metadata_overrides=None, interactive=True):
 
     # If file_path is provided, import data from file. Otherwise, fetch data from Kobo API.
     if file_path:
         df = import_data(file_path)
-        metadata, _ = add_to_log(df, source='file')
-        df['_submission_time'] = df['_submission_time'].fillna(metadata['last_submission'])
+        metadata, _ = add_to_log(df, source='file', metadata_overrides=metadata_overrides, interactive=interactive)
+        frame = df.copy()
+        if '_submission_time' not in frame.columns:
+            frame = frame.assign(_submission_time=metadata['last_submission'])
+        else:
+            frame['_submission_time'] = frame['_submission_time'].fillna(metadata['last_submission'])
+        df = frame
         print("Data imported from file. Kobo metadata functions will be skipped (question dataframe and choices dataframe). Only basic metadata will be logged.")
         dataset = DataSet(df, None, None, metadata)
-        dataset = add_uuid(dataset, hash_cols=None)
+        dataset.df.columns = dataset.df.columns.str.split("/").str[-1]
+        dataset = drop_child_name_cols(dataset)
+        dataset = add_uuid(dataset)
         return dataset
 
     if not all([BASE_URL, ASSET_ID, API_KEY]):
         raise ValueError("BASE_URL, ASSET_ID, and API_KEY must be provided if file_path is not specified.")
 
     df, qdf, cdf = get_kobo_data(BASE_URL, ASSET_ID, API_KEY)
-    metadata, _ = add_to_log(df, source='kobo')
+    metadata, _ = add_to_log(df, source='kobo', metadata_overrides=metadata_overrides, interactive=interactive)
     print("Data fetched from Kobo API and metadata logged including question and choice dataframes (.qdf and .cdf).")
     dataset = DataSet(df, qdf, cdf, metadata)
-    dataset = add_uuid(dataset, hash_cols=None)
+    dataset.df.columns = dataset.df.columns.str.split("/").str[-1]
+    dataset = drop_child_name_cols(dataset)
+    dataset = add_uuid(dataset)
     return dataset

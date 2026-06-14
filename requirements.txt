@@ -1,0 +1,12 @@
+# MwM Proof of Concept V2 requirements
+# Core pipeline dependencies
+pandas
+requests
+openpyxl
+
+# Notebook and reporting dependencies
+python-dotenv
+numpy
+matplotlib
+seaborn
+plotly

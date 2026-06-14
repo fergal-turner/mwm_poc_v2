@@ -3,6 +3,7 @@
     {
       "id": "haldo_self_concept",
       "level": "child",
+      "type": "numeric",
       "agg_type": "calculated",
       "calc": {
         "op": "mean",
@@ -25,6 +26,7 @@
     {
       "id": "haldo_empathy",
       "level": "child",
+      "type": "numeric",
       "agg_type": "calculated",
       "calc": {
         "op": "mean",
@@ -41,6 +43,7 @@
     {
       "id": "haldo_sel",
       "level": "child",
+      "type": "numeric",
       "agg_type": "aggregate",
       "calc": {
         "op": "mean",
@@ -54,6 +57,7 @@
     {
       "id": "haldo_expressive_language",
       "level": "child",
+      "type": "numeric",
       "agg_type": "calculated",
       "calc": {
         "op": "divide",
@@ -65,6 +69,7 @@
     {
       "id": "haldo_letter_identification",
       "level": "child",
+      "type": "numeric",
       "agg_type": "calculated",
       "calc": {
         "op": "divide",
@@ -77,6 +82,7 @@
     {
       "id": "haldo_accuracy",
       "level": "child",
+      "type": "numeric",
       "agg_type": "calculated",
       "calc": {
         "op": "divide",
@@ -88,6 +94,7 @@
     {
       "id": "haldo_comprehension",
       "level": "child",
+      "type": "numeric",
       "agg_type": "calculated",
       "calc": {
         "op": "divide",
@@ -99,6 +106,7 @@
     {
       "id": "haldo_literacy",
       "level": "child",
+      "type": "numeric",
       "agg_type": "aggregate",
       "calc": {
         "op": "mean",
@@ -114,6 +122,8 @@
     },
     {
     "id": "aser_literacy",
+    "level": "child",
+    "type": "ordinal",
     "agg_type": "calculated",
     "label": "Literacy (ASER reading level)",
     "calc": {
@@ -131,6 +141,8 @@
   },
   {
     "id": "aser_numeracy",
+    "level": "child",
+    "type": "ordinal",
     "agg_type": "calculated",
     "label": "Numeracy (ASER maths level)",
     "calc": {
@@ -142,7 +154,7 @@
         "maths_division"
       ]
     },
-    "agg_method": "max",
+    "agg_method": "mean",
     "missing_handling": "skip"
   }
 

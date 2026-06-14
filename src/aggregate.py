@@ -1,20 +1,21 @@
-"""Aggregation utilities extracted from Ingest_notebook.ipynb.
 
-This module keeps the notebook logic intact and adds only readability annotations.
-"""
 
 import json
 from pathlib import Path
 
 import pandas as pd
 
-from code.utils import get_project_context
+from src.utils import get_project_context
 
 
 # ========================================================================
 # AGGREGATION PIPELINE
 # ========================================================================
-def aggregates(df):
+def aggregates(dataset):
+
+    df = dataset.df
+    metadata = dataset.metadata
+    
     context = get_project_context(start_path=Path(__file__).resolve())
     CONFIG_DIR = context["config_dir"]
 
@@ -65,13 +66,11 @@ def aggregates(df):
 
         resolved_columns = {}
 
+        
         for dim_id, dim in dimension_map.items():
-
-            if dim["type"] in ["categorical", "numeric"]:
+            if dim["type"] in ["categorical", "numeric", "derived"]:
                 resolved_columns[dim_id] = resolve_column(df, dim["columns"])
 
-            elif dim["type"] == "derived":
-                resolved_columns[dim_id] = resolve_column(df, dim["columns"])
 
         # ---------- determine availability ----------
 
@@ -101,6 +100,10 @@ def aggregates(df):
                 if col != dim_id:  # only copy if needed
                     new_cols[dim_id] = df[col]
 
+            if dim["type"] == "categorical":
+                if col in df.columns:
+                    df[col] = df[col].astype("category")
+
         if new_cols:
             df = pd.concat([df, pd.DataFrame(new_cols)], axis=1)
 
@@ -116,13 +119,15 @@ def aggregates(df):
     # --------------------------------------------------------------------
     # Indicator calculations
     # --------------------------------------------------------------------
-    def calculate_indicators(df):
+    def calculate_indicators(df, metadata):
 
-        with open(CONFIG_DIR / "child_config.json", "r", encoding="utf-8") as f:
-            child_config = json.load(f)
+        level = metadata.get("level")
+
+        with open(CONFIG_DIR / f"{level}_config.json", "r", encoding="utf-8") as f:
+            config = json.load(f)
 
         indicator_map = {
-            ind["id"]: ind for ind in child_config["indicators"]
+            ind["id"]: ind for ind in config["indicators"]
         }
 
         def resolve_column(df, candidates):
@@ -133,7 +138,9 @@ def aggregates(df):
         missing_indicators = []
         resolved_columns = {}
 
-        # --- Resolve calculated indicators ---
+        # --- Resolve indicators ---
+        simple_inds = []
+
         for ind_id, ind in indicator_map.items():
             if ind["agg_type"] == "calculated":
                 requested_cols = ind["calc"]["columns"]
@@ -146,11 +153,23 @@ def aggregates(df):
                 else:
                     missing_indicators.append(ind_id)
 
+            elif ind["agg_type"] == "simple":
+                candidates = ind.get("columns", [])
+                found_cols = resolve_column(df, candidates)
+                resolved_columns[ind_id] = found_cols
+                if found_cols is not None:
+                    available_indicators.append(ind_id)
+                    simple_inds.append(ind_id)
+                else:
+                    missing_indicators.append(ind_id)
+
         # --- Compute calculated indicators (vectorised) ---
         ind_df = pd.DataFrame(index=df.index)
 
         for ind in available_indicators:
             meta = indicator_map[ind]
+            if meta["agg_type"] == "simple":
+                continue
             op = meta["calc"]["op"]
             cols = resolved_columns[ind]
 
@@ -175,6 +194,10 @@ def aggregates(df):
                 )
 
                 ind_df[ind] = (mask * weights).max(axis=1)
+
+        for ind_id in simple_inds:
+            col = resolved_columns[ind_id][0]
+            ind_df[ind_id] = df[col]
 
         # --- Resolve aggregate indicators (based on calculated outputs) ---
         agg_inds = []
@@ -208,7 +231,7 @@ def aggregates(df):
         return df, available_indicators, missing_indicators
 
     df, available_dimensions, missing_dimensions = calculate_dims(df)
-    df, available_indicators, missing_indicators = calculate_indicators(df)
+    df, available_indicators, missing_indicators = calculate_indicators(df, metadata)
 
     df_summary = {
         "available_dimensions": available_dimensions,
@@ -216,7 +239,13 @@ def aggregates(df):
         "available_indicators": available_indicators,
         "missing_indicators": missing_indicators
     }
+    if 'uid' in df.columns:
+        df_short = df[['uid'] + available_dimensions + available_indicators + ["_uuid"]]
+    else:
+        df_short = df[available_dimensions + available_indicators + ["_uuid"]]
 
-    df_short = df[available_dimensions + available_indicators]
+    dataset.df = df
+    dataset.df_short = df_short
+    dataset.df_summary = df_summary
 
-    return df, df_short, df_summary
+    return dataset
