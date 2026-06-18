@@ -1,6 +1,7 @@
 {
   "available_dimensions": [
     "admin3",
+    "date_time",
     "school",
     "sex"
   ],

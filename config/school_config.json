@@ -1,0 +1,40 @@
+{
+  "indicators": [
+    {
+      "id": "pta_active",
+      "level": "school",
+      "type": "categorical",
+      "agg_type": "simple",
+        "columns": [
+          "pta_active"],
+      "agg_method": "last"
+    },
+    {
+      "id": "school_management_committee_active",
+      "level": "school",
+      "type": "categorical",
+      "agg_type": "simple",
+        "columns": [
+          "smc_active"],
+      "agg_method": "last"
+    },
+    {
+      "id": "plc_frequency",
+      "level": "school",
+      "type": "numeric",
+      "agg_type": "simple",
+        "columns": [
+          "plc_frequency"],
+      "agg_method": "last"
+    },
+    {
+      "id": "safeguarding_policy",
+      "level": "school",
+      "type": "categorical",
+      "agg_type": "simple",
+        "columns": [
+          "safeguarding_policy"],
+      "agg_method": "last"
+    }
+  ]
+}

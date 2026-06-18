@@ -1,6 +1,12 @@
 {
   "dimensions": [
     {
+    "id": "date_time",
+    "type": "ordinal",
+    "columns": ["_submission_time"],
+    "agg_method": "last"
+    },
+    {
       "id": "admin0",
       "type": "categorical",
       "columns": [
@@ -115,6 +121,13 @@
       "type": "ordinal",
       "columns": ["grade"],
       "agg_method": "last"
+    },
+    {
+      "id": "round",
+      "type": "categorical",
+      "columns": ["round"],
+      "values": ["baseline", "midline", "endline"],
+      "agg_method": "first"
     },
     {
     "id": "age_group",

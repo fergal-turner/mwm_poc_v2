@@ -136,7 +136,7 @@
         "reading_comprehension"
       ]
     },
-    "agg_method": "max",
+    "agg_method": "mean",
     "missing_handling": "skip"
   },
   {

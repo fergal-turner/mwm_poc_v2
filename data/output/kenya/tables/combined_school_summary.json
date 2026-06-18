@@ -1,0 +1,55 @@
+{
+  "available_dimensions": [
+    "date_time",
+    "admin1",
+    "admin2",
+    "school"
+  ],
+  "missing_dimensions": [
+    "admin0",
+    "admin3",
+    "location",
+    "protection_status",
+    "sex",
+    "age",
+    "disability",
+    "grade",
+    "round",
+    "age_group"
+  ],
+  "available_indicators": [
+    "pta_active",
+    "school_management_committee_active",
+    "plc_frequency",
+    "safeguarding_policy",
+    "haldo_sel",
+    "haldo_literacy",
+    "aser_literacy",
+    "aser_numeracy",
+    "time_on_task",
+    "class_management_time",
+    "facilitation_time",
+    "off_task_behaviour",
+    "disruption_level",
+    "literacy_practice",
+    "numeracy_practice",
+    "sel_practice",
+    "student_teacher_ratio",
+    "learning_resources",
+    "gender_responsiveness",
+    "safe_environment",
+    "rtl_use",
+    "lesson_preparedness"
+  ],
+  "missing_indicators": [
+    "haldo_self_concept",
+    "haldo_empathy",
+    "haldo_expressive_language",
+    "haldo_letter_identification",
+    "haldo_accuracy",
+    "haldo_comprehension"
+  ],
+  "source_form_ids": [
+    "school_001"
+  ]
+}

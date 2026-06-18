@@ -5,10 +5,12 @@
     "admin3",
     "age",
     "age_group",
+    "date_time",
     "disability",
     "grade",
     "location",
     "protection_status",
+    "round",
     "school",
     "sex"
   ],
@@ -16,18 +18,12 @@
   "available_indicators": [
     "aser_literacy",
     "aser_numeracy",
-    "haldo_accuracy",
-    "haldo_comprehension",
-    "haldo_empathy",
-    "haldo_expressive_language",
-    "haldo_letter_identification",
     "haldo_literacy",
-    "haldo_sel",
-    "haldo_self_concept"
+    "haldo_sel"
   ],
   "missing_indicators": [],
   "source_form_ids": [
-    "aser_001",
-    "haldo_001"
+    "haldo_001",
+    "aser_001"
   ]
 }
