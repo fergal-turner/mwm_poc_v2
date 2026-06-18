@@ -39,14 +39,14 @@ def classify_series(col):
 
     # name-based override
     if "admin" in name:
-        return "categorical", nunique
+        return "categorical"
 
     if pd.api.types.is_numeric_dtype(col):
         if nunique > 10:
             return "numeric", (col.min(), col.max())
-        return "ordinal", nunique
+        return "ordinal"
 
-    return "categorical", nunique
+    return "categorical"
 
 def classify_from_config(col, level, config_dir):
     """Return (category, range_descriptor) for a Series based on config files."""
@@ -164,7 +164,12 @@ def plotter(kind, plot, df, dim, ind):
             ax.grid(False)
 
         elif plot == "stacked_bar":
-            ct = pd.crosstab(df[dim], df[ind], normalize="index")
+            ct = (
+                df.groupby([dim, ind])
+                .size()
+                .unstack(fill_value=0)
+            )
+            ct = ct.div(ct.sum(axis=1), axis=0)
             n = ct.shape[1]
             ct.plot(kind="bar", stacked=True, color=get_ordinal_colors(n), ax=ax)
             ax.grid(False)
@@ -196,7 +201,12 @@ def plotter(kind, plot, df, dim, ind):
             )
 
         elif plot == "stacked_bar":
-            ct = pd.crosstab(df[dim], df[ind], normalize="index").sort_index(axis=1)
+            ct = (
+                df.groupby([dim, ind])
+                .size()
+                .unstack(fill_value=0)
+            )
+            ct = ct.div(ct.sum(axis=1), axis=0)
             n = ct.shape[1]
             colors = get_ordinal_colors(n) or px.colors.qualitative.Plotly
             # Melt to long format so px.bar handles it unambiguously

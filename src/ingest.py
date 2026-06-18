@@ -180,7 +180,7 @@ def add_to_log(df, source='kobo', metadata_overrides=None, interactive=True):
         form_id = df['form_id'].unique()[0]
         survey_name = None
 
-        df['_submission_time'] = pd.to_datetime(df['_submission_time'], utc=True, errors='coerce').dt.floor('min').dt.tz_localize(None)
+        df['_submission_time'] = pd.to_datetime(df['_submission_time'], format='%Y-%m-%d %H:%M:%S', errors='coerce').dt.floor('min').dt.tz_localize(None)
 
         first_submission = df['_submission_time'].min().floor('min')
         last_submission = df['_submission_time'].max().floor('min')
@@ -211,7 +211,6 @@ def add_to_log(df, source='kobo', metadata_overrides=None, interactive=True):
         return metadata
 
     def parse_xls_csv_metadata(df):
-        df = df.copy()
 
         if 'form_id' in df.columns:
             form_id = df['form_id'].unique()[0]
@@ -223,29 +222,26 @@ def add_to_log(df, source='kobo', metadata_overrides=None, interactive=True):
 
             cols = df.columns.str.lower()
 
-            if any(col in cols for col in ['date', 'submission_date', 'timestamp']):
-                date_col = next(col for col in df.columns if col.lower() in ['date', 'submission_date', 'timestamp'])
+            if any(col in cols for col in ['today', 'start', 'end', 'date', 'submission_date', 'timestamp']):
+                date_col = next(col for col in df.columns if col.lower() in ['today', 'start', 'end', 'date', 'submission_date', 'timestamp'])
                 df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
                 df['_submission_time'] = df[date_col]
 
             else:
                 df['_submission_time'] = pd.NaT
 
-        df['_submission_time'] = pd.to_datetime(df['_submission_time'], utc=True, errors='coerce').dt.floor('min').dt.tz_localize(None)
+        df['_submission_time'] = pd.to_datetime(df['_submission_time'], format='%Y-%m-%d %H:%M:%S', errors='coerce').dt.floor('min').dt.tz_localize(None)
 
-        first_submission = pd.to_datetime(df['_submission_time'].min(), errors='coerce').floor('min')
-        last_submission = pd.to_datetime(df['_submission_time'].max(), errors='coerce').floor('min')
+        first_submission = pd.to_datetime(df['_submission_time'].min(), format='%Y-%m-%d %H:%M:%S', errors='coerce').floor('min')
+        last_submission = pd.to_datetime(df['_submission_time'].max(), format='%Y-%m-%d %H:%M:%S', errors='coerce').floor('min')
 
         rows = len(df)
 
-        df_low = df.copy()
-        df_low.columns = df_low.columns.str.lower()
-
-        if 'country' in df_low.columns:
-            if df_low['country'].nunique() > 1:
+        if 'country' in df.columns.str.lower():
+            if df['country'].nunique() > 1:
                 country = 'multiple'
             else:
-                country = df_low['country'].unique()[0]
+                country = df['country'].unique()[0]
         else:
             country = None
 
@@ -336,19 +332,30 @@ def add_to_log(df, source='kobo', metadata_overrides=None, interactive=True):
             else:
                 metadata['last_submission'] = pd.NaT
 
+    print("Metadata added to log:")
+    print(metadata)
+
+    return metadata
+
+def update_log(dataset):
+    log_path = Path(get_project_context(start_path=Path(__file__).resolve())["data_dir"]) / "import_log.csv"
+    log_df = pd.read_csv(log_path)
+
+    metadata = dataset.metadata
+
     log_df = pd.concat([log_df, pd.DataFrame([metadata])], ignore_index=True)
 
-    log_df['logged_at'] = pd.to_datetime(log_df['logged_at'], errors='coerce')
+    log_df['logged_at'] = pd.to_datetime(log_df['logged_at'], format='%Y-%m-%d %H:%M:%S', errors='coerce')
 
     log_df.loc[log_df.index[-1], 'logged_at'] = pd.Timestamp.now().floor('min')
 
     log_df.to_csv(log_path, index=False)
 
-    print("Metadata added to log:")
-    print(metadata)
+    for key, value in metadata.items():
+        log_df.loc[log_df['form_id'] == metadata['form_id'], key] = value
 
-    return metadata, log_df
-
+    log_df.to_csv(log_path, index=False)
+    
 
 # ========================================================================
 # DATASET OBJECT AND IDENTIFIER HELPERS
@@ -427,8 +434,10 @@ def add_uuid(dataset):
         uuid_series.loc[is_dup] = uuid_series.loc[is_dup] + "_" + dup_counts.loc[is_dup]
         print("Detected duplicate hash keys; appended duplicate index suffix for uniqueness.")
 
-    frame = frame.assign(_uuid=uuid_series, _uuid_cols=",".join(hash_cols))
-    dataset.df = frame
+    
+    dataset.df['_uuid'] = uuid_series
+    _uuid_cols = ",".join(hash_cols)
+    dataset.metadata['_uuid_cols'] = _uuid_cols
 
     return dataset
 
@@ -441,28 +450,34 @@ def build_dataset(BASE_URL=None, ASSET_ID=None, API_KEY=None, file_path=None, me
     # If file_path is provided, import data from file. Otherwise, fetch data from Kobo API.
     if file_path:
         df = import_data(file_path)
-        metadata, _ = add_to_log(df, source='file', metadata_overrides=metadata_overrides, interactive=interactive)
+        metadata = add_to_log(df, source='file', metadata_overrides=metadata_overrides, interactive=interactive)
         frame = df.copy()
         if '_submission_time' not in frame.columns:
             frame = frame.assign(_submission_time=metadata['last_submission'])
+            frame['_submission_time'] = pd.to_datetime(frame['_submission_time'], format='%Y-%m-%d', errors='coerce').dt.floor('D')
         else:
             frame['_submission_time'] = frame['_submission_time'].fillna(metadata['last_submission'])
+            frame['_submission_time'] = pd.to_datetime(frame['_submission_time'], format='%Y-%m-%d', errors='coerce').dt.floor('D')
         df = frame
         print("Data imported from file. Kobo metadata functions will be skipped (question dataframe and choices dataframe). Only basic metadata will be logged.")
         dataset = DataSet(df, None, None, metadata)
         dataset.df.columns = dataset.df.columns.str.split("/").str[-1]
         dataset = drop_child_name_cols(dataset)
         dataset = add_uuid(dataset)
+        update_log(dataset)
+
         return dataset
 
     if not all([BASE_URL, ASSET_ID, API_KEY]):
         raise ValueError("BASE_URL, ASSET_ID, and API_KEY must be provided if file_path is not specified.")
 
     df, qdf, cdf = get_kobo_data(BASE_URL, ASSET_ID, API_KEY)
-    metadata, _ = add_to_log(df, source='kobo', metadata_overrides=metadata_overrides, interactive=interactive)
+    metadata = add_to_log(df, source='kobo', metadata_overrides=metadata_overrides, interactive=interactive)
     print("Data fetched from Kobo API and metadata logged including question and choice dataframes (.qdf and .cdf).")
     dataset = DataSet(df, qdf, cdf, metadata)
     dataset.df.columns = dataset.df.columns.str.split("/").str[-1]
     dataset = drop_child_name_cols(dataset)
     dataset = add_uuid(dataset)
+    update_log(dataset)
+
     return dataset

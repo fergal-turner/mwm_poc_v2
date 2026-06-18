@@ -68,7 +68,7 @@ def aggregates(dataset):
 
         
         for dim_id, dim in dimension_map.items():
-            if dim["type"] in ["categorical", "numeric", "derived"]:
+            if dim["type"] in ["categorical", "ordinal", "numeric", "derived"]:
                 resolved_columns[dim_id] = resolve_column(df, dim["columns"])
 
 
@@ -96,16 +96,18 @@ def aggregates(dataset):
                 new_cols[dim_id] = compute_derived_dimension(df[col], dim)
                 dims_derived.append(dim_id)
 
-            elif dim["type"] in ["categorical", "numeric"]:
+            elif dim["type"] in ["categorical", "ordinal", "numeric"]:
                 if col != dim_id:  # only copy if needed
                     new_cols[dim_id] = df[col]
 
             if dim["type"] == "categorical":
                 if col in df.columns:
                     df[col] = df[col].astype("category")
-
+            
         if new_cols:
             df = pd.concat([df, pd.DataFrame(new_cols)], axis=1)
+            if "date_time" in df.columns:
+                df["date_time"] = pd.to_datetime(df["date_time"], errors="coerce").dt.floor("D")
 
         # ---------- logging ----------
 
@@ -201,7 +203,9 @@ def aggregates(dataset):
 
         # --- Resolve aggregate indicators (based on calculated outputs) ---
         agg_inds = []
+        component_inds = set()
 
+        
         for ind_id, ind in indicator_map.items():
             if ind["agg_type"] == "aggregate":
                 requested_cols = ind["calc"]["columns"]
@@ -211,9 +215,15 @@ def aggregates(dataset):
 
                 if found_cols is not None and len(found_cols) == len(requested_cols):
                     agg_inds.append(ind_id)
+                    component_inds.update(found_cols)
                     available_indicators.append(ind_id)
                 else:
                     missing_indicators.append(ind_id)
+        
+        available_indicators = [
+            ind for ind in available_indicators
+            if ind not in component_inds
+        ]
 
         # --- Compute aggregates (vectorised) ---
         agg_df = pd.DataFrame(index=df.index)
