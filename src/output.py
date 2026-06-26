@@ -13,7 +13,20 @@ DATA_DIR = context["data_dir"]
 
 
 def add_uuid(df, hash_cols):
-
+    """Generate deterministic UUIDs for dataset rows for deduplication.
+    
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame to add UUIDs to
+    hash_cols : list
+        Column names to use for UUID generation
+        
+    Returns
+    -------
+    tuple
+        (df with _uuid column added, list of hash column names)
+    """
     hash_cols = find_hash_columns(df)
 
     if len(hash_cols) > 5:
@@ -30,7 +43,18 @@ def add_uuid(df, hash_cols):
 
 
 def output_df(dataset):
-
+    """Write processed dataset to CSV, with deduplication and version control.
+    
+    Writes the dataset to output/<country>/<level>/ directory using the form ID,
+    country, and first submission date in the filename. On subsequent imports of
+    the same form, compares UUIDs to detect data loss and creates versioned
+    backups if necessary.
+    
+    Parameters
+    ----------
+    dataset : DataSet
+        Processed dataset with UUID and metadata
+    """
     df = dataset.df
 
     date_str = dataset.metadata.get("first_submission").strftime("%Y-%m-%d")

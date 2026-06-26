@@ -127,7 +127,25 @@ def get_kobo_data(BASE_URL, ASSET_ID, API_KEY):
 
 
 def import_data(file_path):
-
+    """Import survey data from a CSV or Excel file.
+    
+    Attempts to detect file format and delimiter, then reads data into a DataFrame.
+    
+    Parameters
+    ----------
+    file_path : str
+        Path to the .csv, .xls, or .xlsx file
+        
+    Returns
+    -------
+    pd.DataFrame
+        The imported survey data
+        
+    Raises
+    ------
+    ValueError
+        If file format is unsupported or delimiter cannot be detected
+    """
     if file_path.endswith('.xls') or file_path.endswith('.xlsx'):
         df = pd.read_excel(file_path)
     elif file_path.endswith('.csv'):
@@ -147,7 +165,24 @@ def import_data(file_path):
 
 
 def split_multi(df, qdf):
-
+    """Split select_multiple columns into individual binary columns.
+    
+    When a Kobo form has select_multiple questions, responses are stored as
+    space-separated values. This function expands them into separate binary columns
+    for easier analysis and aggregation.
+    
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Data to transform
+    qdf : pd.DataFrame
+        Question dataframe with 'type' column to identify select_multiple questions
+        
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with select_multiple columns split into individual columns
+    """
     if not qdf['type'].str.startswith('select_multiple').any():
         return df
 
@@ -163,6 +198,29 @@ def split_multi(df, qdf):
 
 
 def add_to_log(df, source='kobo', metadata_overrides=None, interactive=True):
+    """Extract metadata from survey data and add/update the import log.
+    
+    This function parses submission timestamps and form IDs from data, prompts for
+    missing metadata (survey name, level, country) if running interactively, and
+    logs the dataset to data/import_log.csv to track all imported surveys.
+    
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Raw survey data with submission metadata
+    source : str, default 'kobo'
+        'kobo' for Kobo API data or 'file' for CSV/Excel imports
+    metadata_overrides : dict, optional
+        Pre-filled metadata values (form_id, survey_name, level, country, dates)
+    interactive : bool, default True
+        Whether to prompt for missing metadata interactively
+        
+    Returns
+    -------
+    dict
+        Metadata dictionary with form_id, survey_name, level, country, first/last submission,
+        row count, and UUID column specification
+    """
     context = get_project_context(start_path=Path(__file__).resolve())
     DATA_DIR = context["data_dir"]
     metadata_overrides = metadata_overrides or {}
@@ -338,6 +396,15 @@ def add_to_log(df, source='kobo', metadata_overrides=None, interactive=True):
     return metadata
 
 def update_log(dataset):
+    """Update the import log with the dataset's final metadata after processing.
+    
+    Appends or updates the log entry for a dataset and records the current timestamp.
+    
+    Parameters
+    ----------
+    dataset : DataSet
+        Processed dataset with metadata populated
+    """
     log_path = Path(get_project_context(start_path=Path(__file__).resolve())["data_dir"]) / "import_log.csv"
     log_df = pd.read_csv(log_path)
 
@@ -361,6 +428,23 @@ def update_log(dataset):
 # DATASET OBJECT AND IDENTIFIER HELPERS
 # ========================================================================
 class DataSet:
+    """Container for raw survey data with methods for preprocessing.
+    
+    Holds the raw dataframe, question/choice metadata, and dataset metadata.
+    Provides convenience methods for splitting multi-select columns and
+    removing personally identifiable information.
+    
+    Attributes
+    ----------
+    df : pd.DataFrame
+        Raw survey responses
+    qdf : pd.DataFrame, optional
+        Question metadata from form schema (column metadata)
+    cdf : pd.DataFrame, optional
+        Choice options metadata for select questions
+    metadata : dict
+        Form ID, submission dates, country, survey level, UUID columns
+    """
     def __init__(self, df, qdf, cdf, metadata):
         self.df = df
         self.qdf = qdf
@@ -368,6 +452,13 @@ class DataSet:
         self.metadata = metadata
 
     def split_multi(self):
+        """Split select_multiple columns into individual binary columns.
+        
+        Returns
+        -------
+        DataSet
+            New DataSet with select_multiple expanded
+        """
         df = self.df.copy()
 
         if not self.qdf['type'].str.startswith('select_multiple').any():
@@ -385,6 +476,16 @@ class DataSet:
         return DataSet(df, self.qdf, self.cdf, self.metadata)
     
     def split_group_name(self):
+        """Remove group prefixes from column names after repeat group expansion.
+        
+        Kobo repeat groups create nested column names like 'group/column'.
+        This method extracts just the column part.
+        
+        Returns
+        -------
+        DataSet
+            New DataSet with simplified column names
+        """
         df = self.df.copy()
         df.columns = df.columns.str.split("/").str[-1]
 
@@ -392,6 +493,21 @@ class DataSet:
 
 
 def drop_child_name_cols(dataset):
+    """Remove child name columns to protect privacy during data processing.
+    
+    Searches for and removes columns containing 'child_name' or 'name' (case-insensitive)
+    to ensure personally identifiable information is not retained in processed datasets.
+    
+    Parameters
+    ----------
+    dataset : DataSet
+        Dataset to clean
+        
+    Returns
+    -------
+    DataSet
+        Dataset with name columns removed
+    """
     df = dataset.df.copy()
 
     # find columns with 'child' or 'name' in them
@@ -408,6 +524,22 @@ def drop_child_name_cols(dataset):
 
 
 def add_uuid(dataset):
+    """Generate deterministic row UUIDs based on key columns to enable deduplication.
+    
+    Selects columns with high uniqueness and low missing data, then creates a hash-based
+    UUID for each row. If UUIDs from a previous import are available in metadata,
+    uses those same columns for consistency. Handles duplicate keys by appending an index.
+    
+    Parameters
+    ----------
+    dataset : DataSet
+        Dataset to add UUIDs to
+        
+    Returns
+    -------
+    DataSet
+        Dataset with _uuid column added and metadata updated with column specification
+    """
     uuid_cols = dataset.metadata.get('_uuid_cols')
 
     if '_uuid' in dataset.df.columns:
@@ -446,7 +578,38 @@ def add_uuid(dataset):
 # PUBLIC BUILDER ENTRYPOINT
 # ========================================================================
 def build_dataset(BASE_URL=None, ASSET_ID=None, API_KEY=None, file_path=None, metadata_overrides=None, interactive=True):
-
+    """Import and prepare survey data from Kobo or file, with metadata logging and deduplication.
+    
+    This is the main public entry point for ingesting survey data. It handles both
+    API imports (Kobo) and file uploads (CSV/Excel), extracts metadata, removes PII,
+    generates UUIDs, and logs the import. The resulting DataSet is ready for aggregation.
+    
+    Parameters
+    ----------
+    BASE_URL : str, optional
+        Kobo server URL (e.g., 'https://kf.kobotoolbox.org/api/v2/assets/')
+    ASSET_ID : str, optional
+        Kobo asset/form ID
+    API_KEY : str, optional
+        Kobo API authentication token
+    file_path : str, optional
+        Path to CSV or Excel file (alternative to Kobo API)
+    metadata_overrides : dict, optional
+        Pre-filled metadata values
+    interactive : bool, default True
+        Prompt for missing metadata values
+        
+    Returns
+    -------
+    DataSet
+        Prepared dataset with UUID and metadata, ready for aggregation
+        
+    Raises
+    ------
+    ValueError
+        If neither file_path nor (BASE_URL, ASSET_ID, API_KEY) are provided,
+        or if required metadata cannot be obtained
+    """
     # If file_path is provided, import data from file. Otherwise, fetch data from Kobo API.
     if file_path:
         df = import_data(file_path)

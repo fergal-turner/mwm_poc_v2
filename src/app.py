@@ -25,7 +25,9 @@ CONFIG_DIR = context["config_dir"]
 
 @st.cache_data
 def load_classification_maps():
-    classification_map = {}
+    \"\"\"Load indicator and dimension classification maps from config files.
+    
+    Reads all level config files and dimensions config to create mappings of\n    indicator/dimension ID -> type (categorical, ordinal, numeric) and\n    indicator ID -> level (child, teacher, school).\n    \n    Returns\n    -------\n    tuple\n        (classification_map dict, level_map dict)\n    \"\"\"\n    classification_map = {}
     level_map = {}
 
     for level in ["child", "teacher", "school"]:
@@ -64,7 +66,9 @@ country = st.sidebar.selectbox("Select country", country_list)
 # --- LOAD DATA ---
 @st.cache_data
 def load_data(level, country):
-    combined = load_combined(OUTPUT_DIR, country=country, level=level)
+    \"\"\"Load combined dataset for a specific level and country from disk.
+    
+    Reads the combined CSV and summary JSON for a level/country, deduplicates\n    on UUID, and returns both the full dataframe and a summary of available\n    indicators/dimensions.\n    \n    Parameters\n    ----------\n    level : str\n        Survey level ('child', 'teacher', or 'school')\n    country : str\n        Country name\n        \n    Returns\n    -------\n    tuple\n        (df_short, df_summary) where df_short has deduplicated rows and\n        df_summary contains available/missing indicator and dimension lists\n    \"\"\"\n    combined = load_combined(OUTPUT_DIR, country=country, level=level)
     if combined is None:
         return None, None
     return combined.df_short, combined.df_summary
@@ -345,6 +349,7 @@ elif page == "Input / Output":
     # ------------------------------------------------------------------
     # KOBO API
     # ------------------------------------------------------------------
+    
     elif source == "Kobo API":
         with st.form("kobo_form"):
             base_url  = st.text_input("Kobo base URL", placeholder="https://kobocat.example.org/api/v2/assets/")
