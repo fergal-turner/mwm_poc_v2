@@ -260,7 +260,7 @@ streamlit run src/app.py
 
 ### 7. **dashdash.py** - Plotly Dash Dashboard (Alternative)
 
-**Purpose**: Alternative dashboard using Plotly Dash framework (similar to app.py but with Dash).
+**Purpose**: Alternative dashboard using Plotly Dash framework (similar to app.py but with Dash). **This is just a test - not really fleshed out yet**
 
 **Features**:
 - Similar layout and functionality to app.py
