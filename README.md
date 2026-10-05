@@ -217,7 +217,7 @@ print(combined.df_summary["available_indicators"])
   - Returns columns: name, ind_type, category, range
 
 - **`plotter(kind, plot, df, dim, ind)`** - Render single chart
-  - `kind`: "static" (matplotlib) or "dynamic" (plotly)
+  - `kind`: "static" (matplotlib/seaborn) or "dynamic" (plotly)
   - `plot`: "mean_bar", "stacked_bar", "line", "scatter"
   - Returns figure object
 

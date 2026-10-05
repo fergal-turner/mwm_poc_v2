@@ -25,9 +25,18 @@ CONFIG_DIR = context["config_dir"]
 
 @st.cache_data
 def load_classification_maps():
-    \"\"\"Load indicator and dimension classification maps from config files.
+    """Load indicator and dimension classification maps from config files.
     
-    Reads all level config files and dimensions config to create mappings of\n    indicator/dimension ID -> type (categorical, ordinal, numeric) and\n    indicator ID -> level (child, teacher, school).\n    \n    Returns\n    -------\n    tuple\n        (classification_map dict, level_map dict)\n    \"\"\"\n    classification_map = {}
+    Reads all level config files and dimensions config to create mappings of
+    indicator/dimension ID -> type (categorical, ordinal, numeric) and
+    indicator ID -> level (child, teacher, school).
+    
+    Returns
+    -------
+    tuple
+        (classification_map dict, level_map dict)
+    """
+    classification_map = {}
     level_map = {}
 
     for level in ["child", "teacher", "school"]:
@@ -66,9 +75,26 @@ country = st.sidebar.selectbox("Select country", country_list)
 # --- LOAD DATA ---
 @st.cache_data
 def load_data(level, country):
-    \"\"\"Load combined dataset for a specific level and country from disk.
+    """Load combined dataset for a specific level and country from disk.
     
-    Reads the combined CSV and summary JSON for a level/country, deduplicates\n    on UUID, and returns both the full dataframe and a summary of available\n    indicators/dimensions.\n    \n    Parameters\n    ----------\n    level : str\n        Survey level ('child', 'teacher', or 'school')\n    country : str\n        Country name\n        \n    Returns\n    -------\n    tuple\n        (df_short, df_summary) where df_short has deduplicated rows and\n        df_summary contains available/missing indicator and dimension lists\n    \"\"\"\n    combined = load_combined(OUTPUT_DIR, country=country, level=level)
+    Reads the combined CSV and summary JSON for a level/country, deduplicates
+    on UUID, and returns both the full dataframe and a summary of available
+    indicators/dimensions.
+    
+    Parameters
+    ----------
+    level : str
+        Survey level ('child', 'teacher', or 'school')
+    country : str
+        Country name
+        
+    Returns
+    -------
+    tuple
+        (df_short, df_summary) where df_short has deduplicated rows and
+        df_summary contains available/missing indicator and dimension lists
+    """
+    combined = load_combined(OUTPUT_DIR, country=country, level=level)
     if combined is None:
         return None, None
     return combined.df_short, combined.df_summary
