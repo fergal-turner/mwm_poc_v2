@@ -10,6 +10,12 @@ from db import load_data
 
 import streamlit as st
 
+import time
+
+t=time.time()
+...
+st.write(time.time()-t)
+
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@200;300;400;500;600;700&display=swap');

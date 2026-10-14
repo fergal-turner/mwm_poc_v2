@@ -4,6 +4,12 @@ import streamlit as st
 from theme import Colors
 from db import load_data
 
+import time
+
+t=time.time()
+...
+st.write(time.time()-t)
+
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@200;300;400;500;600;700&display=swap');
@@ -148,7 +154,8 @@ plot_df = (
 bench = driver_indicators.drop_duplicates(['driver_id', 'role']).set_index(['driver_id', 'role'])[['benchmark', 'indicator_id']]
 driver_meta = drivers.drop_duplicates('driver_id').set_index('driver_id')
 
-for driver in driver_list:
+@st.cache_data
+def get_driver_data(driver):
     driver_df = plot_df[plot_df['driver'] == driver]
     quality_benchmark, quality_label = bench.loc[(driver, "implementation_quality")]
     quantity_benchmark, quantity_label = bench.loc[(driver, "implementation_quantity")]
@@ -156,11 +163,32 @@ for driver in driver_list:
     quantity_label = quantity_label.replace("_", " ").title()
     driver_name = driver_meta.at[driver, 'label']
     driver_description = driver_meta.at[driver, 'description']
+    return driver_df, quality_benchmark, quantity_benchmark, quality_label, quantity_label, driver_name, driver_description
+
+@st.cache_data
+def make_driver_plot(
+    driver_df,
+    quality_benchmark,
+    quantity_benchmark,
+    quality_label,
+    quantity_label,
+):
+    fig, ax = plot_dotplot(
+        driver_df,
+        qual_benchmark=quality_benchmark,
+        quant_benchmark=quantity_benchmark,
+        qual_label=quality_label,
+        quant_label=quantity_label
+    )
+    return fig, ax
+
+for driver in driver_list:
+    driver_df, quality_benchmark, quantity_benchmark, quality_label, quantity_label, driver_name, driver_description = get_driver_data(driver)
     with (col1 if driver.endswith(("1", "3", "5", "7")) else col2):
         st.markdown(f"<p class='oswald' style='font-size:24px;'>{driver_name}</p>", unsafe_allow_html=True)
         st.markdown(f"<p class='arial' style='font-size:16px;'>{driver_description}</p>", unsafe_allow_html=True)
         simple_divider(20)
-        fig, ax = plot_dotplot(driver_df, qual_benchmark=quality_benchmark, quant_benchmark=quantity_benchmark, qual_label=quality_label, quant_label=quantity_label)
+        fig, ax = make_driver_plot(driver_df, quality_benchmark, quantity_benchmark, quality_label, quantity_label)
         st.pyplot(fig)
         plt.close(fig)
 
