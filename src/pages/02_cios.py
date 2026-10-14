@@ -1,5 +1,3 @@
-from turtle import color
-
 from matplotlib import patches
 import pandas as pd
 
@@ -474,7 +472,7 @@ def logout():
 
     st.session_state.clear()
     st.rerun()
-    
+
 with st.sidebar:
     st.caption(f"Signed in as {st.session_state['user'].email}")
 
