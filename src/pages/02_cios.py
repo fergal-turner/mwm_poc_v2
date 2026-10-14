@@ -464,3 +464,19 @@ st.table(
         })
         .format("{:.2f}")
             )
+
+def logout():
+
+    try:
+        supabase.auth.sign_out()
+    except:
+        pass
+
+    st.session_state.clear()
+    st.rerun()
+    
+with st.sidebar:
+    st.caption(f"Signed in as {st.session_state['user'].email}")
+
+    if st.button("🚪 Logout", use_container_width=True):
+        logout()

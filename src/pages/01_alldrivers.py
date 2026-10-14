@@ -232,3 +232,20 @@ for driver in driver_list:
             fig, ax = plot_dotplot(df, driver, qual_benchmark=quality_benchmark, quant_benchmark=quantity_benchmark, qual_label=quality_label, quant_label=quantity_label)
             st.pyplot(fig)
 
+
+
+def logout():
+
+    try:
+        supabase.auth.sign_out()
+    except:
+        pass
+
+    st.session_state.clear()
+    st.rerun()
+    
+with st.sidebar:
+    st.caption(f"Signed in as {st.session_state['user'].email}")
+
+    if st.button("🚪 Logout", use_container_width=True):
+        logout()
