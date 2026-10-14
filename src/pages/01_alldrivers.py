@@ -1,11 +1,12 @@
 import matplotlib.pyplot as plt
 import streamlit as st
 
+import plotly.graph_objects as go
 from theme import Colors
 from db import load_data
 
 import time
-
+import io
 t=time.time()
 ...
 st.write(time.time()-t)
@@ -21,8 +22,82 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
+
+def plotly_dotplot(
+    driver_df,
+    qual_benchmark=None,
+    quant_benchmark=None,
+    qual_label=None,
+    quant_label=None,
+):
+
+    fig = go.Figure()
+
+    colours = [
+        Colors.red if sid == "average" else Colors.green
+        for sid in driver_df["school_id"]
+    ]
+
+    fig.add_trace(
+        go.Scatter(
+            x=driver_df["implementation_quantity"],
+            y=driver_df["implementation_quality"],
+            mode="markers",
+            marker=dict(
+                color=colours,
+                size=16,
+                opacity=0.7,
+            ),
+            text=driver_df["school_id"],
+            hovertemplate=(
+                "School: %{text}<br>"
+                "Quantity: %{x:.2f}<br>"
+                "Quality: %{y:.2f}"
+                "<extra></extra>"
+            ),
+        )
+    )
+
+    if qual_benchmark is not None:
+        fig.add_hline(
+            y=qual_benchmark,
+            line_dash="dash",
+            line_color=Colors.grey_500,
+        )
+
+    if quant_benchmark is not None:
+        fig.add_vline(
+            x=quant_benchmark,
+            line_dash="dash",
+            line_color=Colors.grey_500,
+        )
+
+    fig.update_xaxes(
+        title=quant_label or "Implementation Quantity",
+        range=[0, quant_benchmark * 2.2 if quant_benchmark else None],
+        showline=False,
+        zeroline=False,
+    )
+
+    fig.update_yaxes(
+        title=qual_label or "Implementation Quality",
+        range=[0, qual_benchmark * 2.2 if qual_benchmark else None],
+        showline=False,
+        zeroline=False,
+    )
+
+    fig.update_layout(
+        height=350,
+        margin=dict(l=20, r=20, t=20, b=20),
+        plot_bgcolor="white",
+        paper_bgcolor="white",
+        showlegend=False,
+    )
+
+    return fig
+
 def plot_dotplot(driver_df, qual_benchmark=None, quant_benchmark=None, qual_label=None, quant_label=None):
-    fig, ax = plt.subplots(figsize=(6, 4), dpi=120)
+    fig, ax = plt.subplots(figsize=(6, 4), dpi=200)
 
     ax.scatter(
     driver_df['implementation_quantity'],
@@ -178,14 +253,14 @@ def make_driver_plot(
     quality_label,
     quantity_label,
 ):
-    fig, ax = plot_dotplot(
+    fig = plotly_dotplot(
         driver_df,
         qual_benchmark=quality_benchmark,
         quant_benchmark=quantity_benchmark,
         qual_label=quality_label,
         quant_label=quantity_label
     )
-    return fig, ax
+    return fig
 
 for driver in driver_list:
     t0 = time.perf_counter()
@@ -197,14 +272,16 @@ for driver in driver_list:
         st.markdown(f"<p class='arial' style='font-size:16px;'>{driver_description}</p>", unsafe_allow_html=True)
         simple_divider(20)
         t2 = time.perf_counter()
-        fig, ax = make_driver_plot(driver_df, quality_benchmark, quantity_benchmark, quality_label, quantity_label)
+        fig = make_driver_plot(driver_df, quality_benchmark, quantity_benchmark, quality_label, quantity_label)
         t3 = time.perf_counter()
-        st.pyplot(fig)
+        st.plotly_chart(fig)
         t4 = time.perf_counter()
-        plt.close(fig)
         st.write(f"Time to get driver data for {driver}: {t1 - t0:.4f} seconds")
         st.write(f"Time to make driver plot for {driver}: {t3 - t2:.4f} seconds")
         st.write(f"Time to render plot for {driver}: {t4 - t0:.4f} seconds")
+        # buffer = io.BytesIO()
+        # fig.write_image(buffer, format='png')
+        # st.write(f"{len(buffer.getvalue())/1024:.0f} KB")
 
 
 def logout():
