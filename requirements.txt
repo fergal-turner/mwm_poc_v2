@@ -6,7 +6,11 @@ openpyxl
 
 # Notebook and reporting dependencies
 python-dotenv
+supabase
+psycopg2-binary
 numpy
 matplotlib
 seaborn
 plotly
+streamlit
+supabase
