@@ -199,10 +199,12 @@ for driver in driver_list:
         t2 = time.perf_counter()
         fig, ax = make_driver_plot(driver_df, quality_benchmark, quantity_benchmark, quality_label, quantity_label)
         t3 = time.perf_counter()
+        st.pyplot(fig)
+        t4 = time.perf_counter()
+        plt.close(fig)
         st.write(f"Time to get driver data for {driver}: {t1 - t0:.4f} seconds")
         st.write(f"Time to make driver plot for {driver}: {t3 - t2:.4f} seconds")
-        st.pyplot(fig)
-        plt.close(fig)
+        st.write(f"Time to render plot for {driver}: {t4 - t0:.4f} seconds")
 
 
 def logout():
