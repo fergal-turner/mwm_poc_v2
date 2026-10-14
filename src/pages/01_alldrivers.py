@@ -105,6 +105,8 @@ st.sidebar.markdown('<p class="oswald" style="font-size:24px;">Select Country</p
 
 COUNTRY = st.sidebar.selectbox("Country", options=COUNTRY_OPTIONS)
 
+t0 = time.perf_counter()
+
 indicator_table = load_data(
     "indicator_values", COUNTRY,
     columns="school_id,driver,variable_level,value",
@@ -114,6 +116,9 @@ driver_indicators = load_data(
     columns="driver_id,role,indicator_id,benchmark",
 )
 drivers = load_data("drivers", columns="driver_id,label,description")
+
+t1 = time.perf_counter()
+st.write(f"Time to load data: {t1 - t0:.4f} seconds")
 
 if indicator_table.empty:
     st.warning(f"No complete results for {COUNTRY.title()} yet. Run the pipeline (including build_cmos) first.")
@@ -183,12 +188,19 @@ def make_driver_plot(
     return fig, ax
 
 for driver in driver_list:
+    t0 = time.perf_counter()
     driver_df, quality_benchmark, quantity_benchmark, quality_label, quantity_label, driver_name, driver_description = get_driver_data(driver)
+    t1 = time.perf_counter()
+    
     with (col1 if driver.endswith(("1", "3", "5", "7")) else col2):
         st.markdown(f"<p class='oswald' style='font-size:24px;'>{driver_name}</p>", unsafe_allow_html=True)
         st.markdown(f"<p class='arial' style='font-size:16px;'>{driver_description}</p>", unsafe_allow_html=True)
         simple_divider(20)
+        t2 = time.perf_counter()
         fig, ax = make_driver_plot(driver_df, quality_benchmark, quantity_benchmark, quality_label, quantity_label)
+        t3 = time.perf_counter()
+        st.write(f"Time to get driver data for {driver}: {t1 - t0:.4f} seconds")
+        st.write(f"Time to make driver plot for {driver}: {t3 - t2:.4f} seconds")
         st.pyplot(fig)
         plt.close(fig)
 
