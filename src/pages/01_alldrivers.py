@@ -1,26 +1,8 @@
-import numpy as np
-from matplotlib import patches
-from numpy.char import endswith
-import pandas as pd
-
 import matplotlib.pyplot as plt
-import seaborn as sns
-from matplotlib.colors import LinearSegmentedColormap
-import plotly.graph_objects as go
+import streamlit as st
 
 from theme import Colors
-
-import supabase
-import os
-import streamlit as st
-from dotenv import load_dotenv
-
-load_dotenv()
-
-supabase = supabase.create_client(
-    os.getenv("SUPABASE_URL"),
-    os.getenv("SUPABASE_KEY")
-)
+from db import load_data
 
 st.markdown("""
 <style>
@@ -32,51 +14,9 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-@st.cache_data(ttl=300)
-def load_data(table, country=None, client=supabase, page_size=1000):
-    country_tables = {
-        "indicator_values",
-        "driver_values",
-        "school_values",
-    }
 
-    rows = []
-    start = 0
-
-    while True:
-        query = client.table(table).select("*")
-
-        if country is not None and table in country_tables:
-            query = query.ilike("country", country)
-
-        page = (
-            query
-            .range(start, start + page_size - 1)
-            .execute()
-            .data
-        )
-
-        rows.extend(page)
-
-        if len(page) < page_size:
-            break
-
-        start += page_size
-
-    return pd.DataFrame(rows)
-
-
-def plot_dotplot(data, driver, qual_benchmark=None, quant_benchmark=None, qual_label=None, quant_label=None):
-    fig, ax = plt.subplots(figsize=(6, 4))
-
-    plot_df = (
-    data.groupby(['driver', 'variable_level', 'school_id'])['value']
-    .first()
-      .unstack('variable_level')
-        .reset_index()
-    )
-
-    driver_df = plot_df[plot_df['driver'] == driver]
+def plot_dotplot(driver_df, qual_benchmark=None, quant_benchmark=None, qual_label=None, quant_label=None):
+    fig, ax = plt.subplots(figsize=(6, 4), dpi=120)
 
     ax.scatter(
     driver_df['implementation_quantity'],
@@ -90,33 +30,18 @@ def plot_dotplot(data, driver, qual_benchmark=None, quant_benchmark=None, qual_l
     )
     
     if qual_benchmark is not None:
-        if qual_benchmark.empty:
-            benchmark_qual = None
-        else:
-            benchmark_qual = qual_benchmark.values[0]
-        if benchmark_qual is not None:
-            ax.axhline(benchmark_qual, color=Colors.grey_500, linestyle='--', linewidth=1)
+        ax.axhline(qual_benchmark, color=Colors.grey_500, linestyle='--', linewidth=1)
     if quant_benchmark is not None:
-        if quant_benchmark.empty:
-            benchmark_quant = None
-        else:
-            benchmark_quant = quant_benchmark.values[0]
-        if benchmark_quant is not None:
-            ax.axvline(benchmark_quant, color=Colors.grey_500, linestyle='--', linewidth=1)
-
+        ax.axvline(quant_benchmark, color=Colors.grey_500, linestyle='--', linewidth=1)
 
     ax.grid(True, alpha=0.3)
-    # ax.set_facecolor('whitesmoke')
-    
 
-    ax.set_xlim(0, quant_benchmark.values[0] * 2.2)
+    ax.set_xlim(0, quant_benchmark * 2.2)
     ax.set_xlabel(quant_label if quant_label is not None else "Implementation Quantity", fontsize=12)
     ax.set_ylabel(qual_label if qual_label is not None else "Implementation Quality", fontsize=12)
-    ax.set_ylim(0, qual_benchmark.values[0] * 2.2)
+    ax.set_ylim(0, qual_benchmark * 2.2)
 
     ax.spines[["top", "right"]].set_visible(False)
-
-    plt.rcParams["figure.dpi"] = 200
 
     return fig, ax
 
@@ -174,9 +99,15 @@ st.sidebar.markdown('<p class="oswald" style="font-size:24px;">Select Country</p
 
 COUNTRY = st.sidebar.selectbox("Country", options=COUNTRY_OPTIONS)
 
-indicator_table = load_data("indicator_values", COUNTRY)
-driver_indicators = load_data("driver_indicators", country=None)
-drivers = load_data("drivers", country=None)
+indicator_table = load_data(
+    "indicator_values", COUNTRY,
+    columns="school_id,driver,variable_level,value",
+)
+driver_indicators = load_data(
+    "driver_indicators",
+    columns="driver_id,role,indicator_id,benchmark",
+)
+drivers = load_data("drivers", columns="driver_id,label,description")
 
 if indicator_table.empty:
     st.warning(f"No complete results for {COUNTRY.title()} yet. Run the pipeline (including build_cmos) first.")
@@ -206,40 +137,35 @@ driver_list = indicator_table['driver'].unique()
 
 col1, col2 = st.columns(2)
 
-for driver in driver_list:
-    df = filtered_indicator_table[filtered_indicator_table['driver'] == driver]
-    quality_benchmark = driver_indicators[(driver_indicators['driver_id'] == driver) & (driver_indicators["role"] == "implementation_quality")]['benchmark']
-    quality_label = driver_indicators[(driver_indicators['driver_id'] == driver) & (driver_indicators["role"] == "implementation_quality")]['indicator_id'].values[0]
-    quality_label = quality_label.replace("_", " ").title()
-    quantity_benchmark = driver_indicators[(driver_indicators['driver_id'] == driver) & (driver_indicators["role"] == "implementation_quantity")]['benchmark']
-    quantity_label = driver_indicators[(driver_indicators['driver_id'] == driver) & (driver_indicators["role"] == "implementation_quantity")]['indicator_id'].values[0]
-    quantity_label = quantity_label.replace("_", " ").title()
-    driver_name = drivers.loc[drivers['driver_id'] == driver, 'label'].iloc[0]
-    driver_description = drivers.loc[drivers['driver_id'] == driver, 'description'].iloc[0]
-    if driver.endswith(("1", "3", "5", "7")):
-        with col1:
-            st.markdown(f"<p class='oswald' style='font-size:24px;'>{driver_name}</p>", unsafe_allow_html=True)
-            st.markdown(f"<p class='arial' style='font-size:16px;'>{driver_description}</p>", unsafe_allow_html=True)
-            simple_divider(20)
-            fig, ax = plot_dotplot(df, driver, qual_benchmark=quality_benchmark, quant_benchmark=quantity_benchmark, qual_label=quality_label, quant_label=quantity_label)
-            st.pyplot(fig)
-    else:
-        with col2:
-            st.markdown(f"<p class='oswald' style='font-size:24px;'>{driver_name}</p>", unsafe_allow_html=True)
-            st.markdown(f"<p class='arial' style='font-size:16px;'>{driver_description}</p>", unsafe_allow_html=True)
-            simple_divider(20)
-            fig, ax = plot_dotplot(df, driver, qual_benchmark=quality_benchmark, quant_benchmark=quantity_benchmark, qual_label=quality_label, quant_label=quantity_label)
-            st.pyplot(fig)
+plot_df = (
+    filtered_indicator_table
+    .groupby(['driver', 'variable_level', 'school_id'])['value']
+    .first()
+    .unstack('variable_level')
+    .reset_index()
+)
 
+bench = driver_indicators.drop_duplicates(['driver_id', 'role']).set_index(['driver_id', 'role'])[['benchmark', 'indicator_id']]
+driver_meta = drivers.drop_duplicates('driver_id').set_index('driver_id')
+
+for driver in driver_list:
+    driver_df = plot_df[plot_df['driver'] == driver]
+    quality_benchmark, quality_label = bench.loc[(driver, "implementation_quality")]
+    quantity_benchmark, quantity_label = bench.loc[(driver, "implementation_quantity")]
+    quality_label = quality_label.replace("_", " ").title()
+    quantity_label = quantity_label.replace("_", " ").title()
+    driver_name = driver_meta.at[driver, 'label']
+    driver_description = driver_meta.at[driver, 'description']
+    with (col1 if driver.endswith(("1", "3", "5", "7")) else col2):
+        st.markdown(f"<p class='oswald' style='font-size:24px;'>{driver_name}</p>", unsafe_allow_html=True)
+        st.markdown(f"<p class='arial' style='font-size:16px;'>{driver_description}</p>", unsafe_allow_html=True)
+        simple_divider(20)
+        fig, ax = plot_dotplot(driver_df, qual_benchmark=quality_benchmark, quant_benchmark=quantity_benchmark, qual_label=quality_label, quant_label=quantity_label)
+        st.pyplot(fig)
+        plt.close(fig)
 
 
 def logout():
-
-    try:
-        supabase.auth.sign_out()
-    except:
-        pass
-
     st.session_state.clear()
     st.rerun()
     

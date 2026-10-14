@@ -1,4 +1,3 @@
-from matplotlib import patches
 import pandas as pd
 
 import matplotlib.pyplot as plt
@@ -7,18 +6,9 @@ from matplotlib.colors import LinearSegmentedColormap
 import plotly.graph_objects as go
 
 from theme import Colors
+from db import load_data
 
-import supabase
-import os
 import streamlit as st
-from dotenv import load_dotenv
-
-load_dotenv()
-
-supabase = supabase.create_client(
-    os.getenv("SUPABASE_URL"),
-    os.getenv("SUPABASE_KEY")
-)
 
 st.markdown("""
 <style>
@@ -30,25 +20,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-@st.cache_data(ttl=300)
-def load_data(table, country, client=supabase, page_size=1000):
-    rows, start = [], 0
-    while True:
-        page = (
-            client.table(table)
-            .select("*")
-            .ilike("country", country)
-            .order("country")
-            .range(start, start + page_size - 1)
-            .execute()
-            .data
-        )
-        rows.extend(page)
-        if len(page) < page_size:
-            break
-        start += page_size
-
-    return pd.DataFrame(rows)
 
 @st.cache_data
 def wide_table(table, level, binary = False):
@@ -58,7 +29,6 @@ def wide_table(table, level, binary = False):
        wide = table.pivot(index=level, columns = "variable", values="value_binary")
 
     level_dict = dict(zip(table["variable"], table["variable_level"]))
-    print(level_dict)
 
     suffix_dict = {
         "outcome": " \n(Outcome)",
@@ -98,7 +68,7 @@ def wide_table(table, level, binary = False):
     return wide
 
 def plot_cio_dotplot(cio_table, context):
-    fig, ax = plt.subplots(figsize=(6, 3))
+    fig, ax = plt.subplots(figsize=(6, 3), dpi=120)
     df = cio_table[cio_table['context'] == context].copy()
     
     df["x"] = df["implementation_quantity"].map({"Low": 0, "High": 1})
@@ -148,13 +118,11 @@ def plot_cio_dotplot(cio_table, context):
     ax.grid(False)
     ax.spines[["top", "right", "left", "bottom"]].set_visible(False)
 
-    plt.rcParams["figure.dpi"] = 300
-
     return fig, ax
     
 
 def plot_cio_heatmap(cio_table, context):
-    fig, ax = plt.subplots(figsize=(8, 2))
+    fig, ax = plt.subplots(figsize=(8, 2), dpi=120)
 
     cmap = LinearSegmentedColormap.from_list(
         "mwm",
@@ -194,8 +162,6 @@ def plot_cio_heatmap(cio_table, context):
     ax.set_yticklabels(["Low \nFrequency", "High \nFrequency"], rotation=0, fontname='Arial', fontsize=10, fontweight='bold')
     ax.set_ylabel("")
     ax.grid(False)
-
-    plt.rcParams["figure.dpi"] = 300
 
     return fig, ax
 
@@ -297,9 +263,15 @@ st.sidebar.markdown('<p class="oswald" style="font-size:24px;">Select Country</p
 
 COUNTRY = st.sidebar.selectbox("Country", options=COUNTRY_OPTIONS)
 
-school_table_all = load_data("indicator_values", COUNTRY)
-cio_table_all = load_data("cio_table", COUNTRY)
-narratives_all = load_data("narratives", COUNTRY)
+school_table_all = load_data(
+    "indicator_values", COUNTRY,
+    columns="school_id,driver,variable,variable_level,value,value_binary",
+)
+cio_table_all = load_data(
+    "cio_table", COUNTRY,
+    columns="driver,context,implementation_quantity,implementation_quality,outcome,schools",
+)
+narratives_all = load_data("narratives", COUNTRY, columns="driver,table_name,narrative")
 
 if school_table_all.empty or cio_table_all.empty or narratives_all.empty:
     st.warning(f"No complete results for {COUNTRY.title()} yet. Run the pipeline (including build_cmos) first.")
@@ -309,10 +281,10 @@ if school_table_all.empty or cio_table_all.empty or narratives_all.empty:
 
 driver_options = sorted(school_table_all["driver"].unique())
 
-@st.cache_data(ttl=600)
+@st.cache_data(ttl=3600)
 def load_driver_info():
     try:
-        rows = supabase.table("drivers").select("*").execute().data
+        rows = load_data("drivers", columns="driver_id,label,description").to_dict("records")
     except Exception:
         return {}
     return {r["driver_id"]: r for r in rows}
@@ -414,6 +386,7 @@ fig, ax= plot_cio_dotplot(cio_table, "None")
 
 with st.container(border=False):
     st.pyplot(fig)
+plt.close(fig)
 
 st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
 
@@ -435,6 +408,7 @@ title_font(f"Context: {sidebar}", size=28)
 
 with st.container():
     st.pyplot(fig)
+plt.close(fig)
 
 
 match = narratives.loc[narratives['table_name'] == context, 'narrative']
@@ -464,12 +438,6 @@ st.table(
             )
 
 def logout():
-
-    try:
-        supabase.auth.sign_out()
-    except:
-        pass
-
     st.session_state.clear()
     st.rerun()
 

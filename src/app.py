@@ -1,14 +1,6 @@
-import os
-from supabase import create_client
-from dotenv import load_dotenv
 import streamlit as st
 
-load_dotenv()
-
-supabase = create_client(
-    os.getenv("SUPABASE_URL"),
-    os.getenv("SUPABASE_KEY")
-)
+from db import new_client
 
 def login_screen():
 
@@ -21,7 +13,7 @@ def login_screen():
     if st.button("Sign in"):
 
         try:
-            response = supabase.auth.sign_in_with_password(
+            response = new_client().auth.sign_in_with_password(
                 {
                     "email": email,
                     "password": password,
@@ -37,11 +29,6 @@ def login_screen():
 
 
 def logout():
-
-    try:
-        supabase.auth.sign_out()
-    except:
-        pass
 
     st.session_state.clear()
     st.rerun()
