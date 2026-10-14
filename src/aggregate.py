@@ -1,16 +1,15 @@
 
 
-import json
-from pathlib import Path
+import os
+from dotenv import load_dotenv
 
 import pandas as pd
-
-from src.utils import get_project_context
+from supabase import create_client
 
 # ========================================================================
 # DIMENSION CALCULATION
 # ========================================================================
-def calculate_dims(df, config_dir):
+def calculate_dims(df, metadata=None):
     """Compute and resolve dimensions for the dataset.
     
     Reads dimension configuration, resolves source columns, computes derived
@@ -18,16 +17,6 @@ def calculate_dims(df, config_dir):
     """
 
     # ---------- helpers ----------
-
-    def resolve_column(df, candidates):
-        """Return the first column from candidates that exists in the dataframe.
-        
-        Used to match configured column names against actual column names in the data.
-        """
-        for col in candidates:
-            if col in df.columns:
-                return col
-        return None
 
     def bin_values(series, bins):
         """Convert numeric values into categorical bins based on configured ranges.
@@ -56,6 +45,18 @@ def calculate_dims(df, config_dir):
 
         return series.apply(assign)
 
+    def load_dimensions_df(supabase):
+
+        dim_df = pd.DataFrame(
+            supabase.table("dimensions")
+            .select("*")
+            .eq("active", True)
+            .execute()
+            .data
+        )
+
+        return dim_df
+
     def compute_derived_dimension(series, dim):
         """Transform a series into a derived dimension using the specified operation.
         
@@ -66,193 +67,371 @@ def calculate_dims(df, config_dir):
         return None
 
     # ---------- build dimension map ----------
-    with open(config_dir / "dimensions_config.json", "r", encoding="utf-8") as f:
-        dimensions_config = json.load(f)
 
-    dimension_map = {
-        dim["id"]: dim for dim in dimensions_config["dimensions"]
-    }
+    load_dotenv()
 
-    # ---------- resolve columns ----------
+    supabase = create_client(
+        os.getenv("SUPABASE_URL"),
+        os.getenv("SUPABASE_KEY")
+    )
 
-    resolved_columns = {}
+    dim_df = load_dimensions_df(supabase)
 
-    for dim_id, dim in dimension_map.items():
-        if dim["type"] in ["categorical", "ordinal", "numeric", "derived"]:
-            resolved_columns[dim_id] = resolve_column(df, dim["columns"])
+    if metadata is None:
+        metadata = {}
 
-    # ---------- determine availability ----------
+    def resolve_column(candidates):
+
+        for col in candidates:
+            if col in df.columns:
+                return col
+
+        return None
 
     available_dimensions = []
     missing_dimensions = []
-
-    for dim_id, col in resolved_columns.items():
-        if col is not None:
-            available_dimensions.append(dim_id)
-        else:
-            missing_dimensions.append(dim_id)
-
-    # ---------- compute / map dimensions ----------
-
     new_cols = {}
-    dims_derived = []
 
-    for dim_id in available_dimensions:
-        dim = dimension_map[dim_id]
-        col = resolved_columns[dim_id]
+    for _, dim in dim_df.iterrows():
+
+        dim_id = dim["id"]
+
+        candidates = (
+            [x.strip() for x in dim["columns"].split(",")]
+            if pd.notna(dim["columns"])
+            else []
+        )
+
+        col = resolve_column(candidates)
+
+        if col is None:
+            # Backfill key dimensions from metadata when the source column is absent
+            if dim_id == "admin0" and metadata.get("country"):
+                new_cols[dim_id] = metadata["country"]
+                available_dimensions.append(dim_id)
+            elif dim_id == "date_time" and metadata.get("first_submission"):
+                new_cols[dim_id] = metadata["first_submission"]
+                available_dimensions.append(dim_id)
+            else:
+                missing_dimensions.append(dim_id)
+            continue
+
+        available_dimensions.append(dim_id)
 
         if dim["type"] == "derived":
-            new_cols[dim_id] = compute_derived_dimension(df[col], dim)
-            dims_derived.append(dim_id)
 
-        elif dim["type"] in ["categorical", "ordinal", "numeric"]:
-            if col != dim_id:  # only copy if needed
-                new_cols[dim_id] = df[col]
+            if dim["operation"] == "bin":
+
+                bins = []
+
+                for entry in dim["bins"].split("|"):
+
+                    min_val, max_val, label = entry.split(":")
+
+                    bins.append({
+                        "min": float(min_val),
+                        "max": float(max_val),
+                        "label": label
+                    })
+
+                new_cols[dim_id] = bin_values(
+                    df[col],
+                    bins
+                )
+
+        elif col != dim_id:
+
+            new_cols[dim_id] = df[col]
 
         if dim["type"] == "categorical":
-            if col in df.columns:
-                df[col] = df[col].astype("category")
-        
+            df[col] = df[col].astype("category")
+
     if new_cols:
-        df = pd.concat([df, pd.DataFrame(new_cols)], axis=1)
-        if "date_time" in df.columns:
-            df["date_time"] = pd.to_datetime(df["date_time"], errors="coerce").dt.floor("D")
+        df = pd.concat(
+            [df.drop(columns=[c for c in new_cols if c in df.columns]), pd.DataFrame(new_cols)],
+            axis=1
+        )
 
-    # ---------- logging ----------
+    print(f"Available dimensions: {available_dimensions}")
+    print(f"Missing dimensions: {missing_dimensions}")
+    print(f"New columns added: {list(new_cols.keys())}")
+    
 
-    print("Available dimensions:", available_dimensions)
-    print("Missing dimensions:", missing_dimensions)
-    print("Resolved columns:", resolved_columns)
-    print("Derived dimensions computed:", dims_derived)
-
-    return df, available_dimensions, missing_dimensions
+    return (
+        df,
+        available_dimensions,
+        missing_dimensions
+    )
 
 
 # ========================================================================
 # INDICATOR CALCULATION
 # ========================================================================
-def calculate_indicators(df, metadata, config_dir):
-    """Compute and resolve indicators for the dataset.
-    
-    Reads indicator configuration, resolves source columns, computes calculated
-    and aggregate indicators, and updates the dataframe with indicator columns.
-    """
+
+
+
+def calculate_indicators(df, metadata):
+
+    '''Calculate indicators for the given DataFrame based on the provided metadata.'''
+
+    def load_indicators_df(supabase, level):
+
+        ind_df = pd.DataFrame(
+            supabase.table("indicators")
+            .select("*")
+            .eq("active", True)
+        .eq("level", level)
+            .execute()
+            .data
+        )
+
+        return ind_df
 
     level = metadata.get("level")
 
-    with open(config_dir / f"{level}_config.json", "r", encoding="utf-8") as f:
-        config = json.load(f)
+    load_dotenv()
 
-    indicator_map = {
-        ind["id"]: ind for ind in config["indicators"]
-    }
+    supabase = create_client(
+        os.getenv("SUPABASE_URL"),
+        os.getenv("SUPABASE_KEY")
+    )
 
-    def resolve_column(df, candidates):
-        cols = [col for col in candidates if col in df.columns]
-        return cols if cols else None
+    config_df = load_indicators_df(supabase, level)
+
+    def split_cols(value):
+
+        if pd.isna(value) or value == "":
+            return []
+
+        return [
+            x.strip()
+            for x in str(value).split(",")
+        ]
+
+    def resolve_columns(columns):
+
+        found = [
+            col
+            for col in columns
+            if col in df.columns
+        ]
+
+        return found if found else None
 
     available_indicators = []
     missing_indicators = []
-    resolved_columns = {}
 
-    # --- Resolve indicators ---
-    simple_inds = []
+    result_df = pd.DataFrame(index=df.index)
 
-    for ind_id, ind in indicator_map.items():
-        if ind["agg_type"] == "calculated":
-            requested_cols = ind["calc"]["columns"]
-            found_cols = resolve_column(df, requested_cols)
+    # --------------------------------------------------
+    # SIMPLE + CALCULATED INDICATORS
+    # --------------------------------------------------
 
-            resolved_columns[ind_id] = found_cols
-
-            if found_cols is not None and len(found_cols) == len(requested_cols):
-                available_indicators.append(ind_id)
-            else:
-                missing_indicators.append(ind_id)
-
-        elif ind["agg_type"] == "simple":
-            candidates = ind.get("columns", [])
-            found_cols = resolve_column(df, candidates)
-            resolved_columns[ind_id] = found_cols
-            if found_cols is not None:
-                available_indicators.append(ind_id)
-                simple_inds.append(ind_id)
-            else:
-                missing_indicators.append(ind_id)
-
-    # --- Compute calculated indicators (vectorised) ---
-    ind_df = pd.DataFrame(index=df.index)
-
-    for ind in available_indicators:
-        meta = indicator_map[ind]
-        if meta["agg_type"] == "simple":
-            continue
-        op = meta["calc"]["op"]
-        cols = resolved_columns[ind]
-
-        if op == "sum":
-            ind_df[ind] = df[cols].sum(axis=1)
-
-        elif op == "mean":
-            ind_df[ind] = df[cols].mean(axis=1)
-
-        elif op == "divide":
-            denom = meta["calc"]["by"]
-            ind_df[ind] = df[cols].sum(axis=1) / denom
-
-        elif op == "max":
-            # max index where value == 1
-            mask = df[cols].eq(1)
-
-            weights = pd.DataFrame(
-                [range(1, len(cols)+1)] * len(df),
-                columns=cols,
-                index=df.index
-            )
-
-            ind_df[ind] = (mask * weights).max(axis=1)
-
-    for ind_id in simple_inds:
-        col = resolved_columns[ind_id][0]
-        ind_df[ind_id] = df[col]
-
-    # --- Resolve aggregate indicators (based on calculated outputs) ---
-    agg_inds = []
-    component_inds = set()
-
-    for ind_id, ind in indicator_map.items():
-        if ind["agg_type"] == "aggregate":
-            requested_cols = ind["calc"]["columns"]
-            found_cols = resolve_column(ind_df, requested_cols)
-
-            resolved_columns[ind_id] = found_cols
-
-            if found_cols is not None and len(found_cols) == len(requested_cols):
-                agg_inds.append(ind_id)
-                component_inds.update(found_cols)
-                available_indicators.append(ind_id)
-            else:
-                missing_indicators.append(ind_id)
-    
-    available_indicators = [
-        ind for ind in available_indicators
-        if ind not in component_inds
+    calc_df = config_df[
+        config_df["agg_type"].isin(
+            ["simple", "calculated"]
+        )
     ]
 
-    # --- Compute aggregates (vectorised) ---
-    agg_df = pd.DataFrame(index=df.index)
+    for _, indicator in calc_df.iterrows():
 
-    for ind in agg_inds:
-        cols = resolved_columns[ind]
-        agg_df[ind] = ind_df[cols].mean(axis=1)
+        ind_id = indicator["id"]
 
-    # --- Combine ---
-    df = pd.concat([df, ind_df, agg_df], axis=1)
+        requested_cols = split_cols(
+            indicator["columns"]
+        )
 
-    print("Available indicators:", available_indicators)
+        found_cols = resolve_columns(
+            requested_cols
+        )
+
+        if indicator["agg_type"] == "simple":
+
+            if found_cols:
+
+                available_indicators.append(
+                    ind_id
+                )
+
+                result_df[ind_id] = df[
+                    found_cols[0]
+                ]
+
+            else:
+
+                missing_indicators.append(
+                    ind_id
+                )
+
+        elif indicator["agg_type"] == "calculated":
+
+            if (
+                found_cols is None
+                or
+                len(found_cols)
+                != len(requested_cols)
+            ):
+
+                missing_indicators.append(
+                    ind_id
+                )
+
+                continue
+
+            available_indicators.append(
+                ind_id
+            )
+
+            op = indicator["calc_op"]
+
+            if op == "sum":
+
+                result_df[ind_id] = (
+                    df[found_cols]
+                    .sum(axis=1)
+                )
+
+            elif op == "mean":
+
+                result_df[ind_id] = (
+                    df[found_cols]
+                    .mean(axis=1)
+                )
+
+            elif op == "divide":
+
+                # calc_by is either a number or the name of a denominator column
+                try:
+                    denominator = float(indicator["calc_by"])
+                except (TypeError, ValueError):
+                    if indicator["calc_by"] in df.columns:
+                        denominator = pd.to_numeric(
+                            df[indicator["calc_by"]], errors="coerce"
+                        ).replace(0, float("nan"))
+                    else:
+                        available_indicators.remove(ind_id)
+                        missing_indicators.append(ind_id)
+                        continue
+
+                result_df[ind_id] = (
+                    df[found_cols]
+                    .sum(axis=1)
+                    / denominator
+                )
+
+            elif op == "max":
+
+                mask = df[found_cols].eq(1)
+
+                weights = pd.DataFrame(
+                    [range(
+                        1,
+                        len(found_cols) + 1
+                    )] * len(df),
+                    columns=found_cols,
+                    index=df.index
+                )
+                result_df[ind_id] = (
+                    mask * weights
+                ).max(axis=1)
+
+            elif op == "threshold":
+
+                threshold = float(
+                    indicator["calc_by"]
+                )
+
+                result_df[ind_id] = (
+                    df[found_cols]
+                    .sum(axis=1)
+                    .ge(threshold)
+                    .astype(int)
+                )
+            elif op == "all":
+
+                result_df[ind_id] = (
+                    df[found_cols]
+                    .all(axis=1)
+                    .astype(int)
+                )
+
+            elif op == "count_at_least":
+
+                result_df[ind_id] = (
+                    df[found_cols]
+                    .apply(pd.to_numeric, errors="coerce")
+                    .sum(axis=1)
+                    .ge(float(indicator["calc_by"]))
+                    .astype(int)
+                )
+
+            else:
+                print(f"Unsupported calc_op '{op}' for indicator '{ind_id}'; marking as missing.")
+                available_indicators.remove(ind_id)
+                missing_indicators.append(ind_id)
+                
+    # --------------------------------------------------
+    # AGGREGATE INDICATORS
+    # --------------------------------------------------
+
+    agg_config = config_df[
+        config_df["agg_type"]
+        == "aggregate"
+    ]
+
+    component_inds = set()
+
+    for _, indicator in agg_config.iterrows():
+
+        ind_id = indicator["id"]
+
+        components = split_cols(
+            indicator["columns"]
+        )
+
+        if all(
+            component in result_df.columns
+            for component in components
+        ):
+
+            result_df[ind_id] = (
+                result_df[components]
+                .mean(axis=1)
+            )
+
+            component_inds.update(
+                components
+            )
+
+            available_indicators.append(
+                ind_id
+            )
+
+        else: missing_indicators.append(ind_id)
+
+    # --------------------------------------------------
+    # REMOVE INTERMEDIATE COMPONENTS
+    # --------------------------------------------------
+
+    available_indicators = [ind for ind in available_indicators if ind not in component_inds]
+
+    # --------------------------------------------------
+    # COMBINE
+    # --------------------------------------------------
+
+    df = pd.concat(
+        [df.drop(columns=[c for c in result_df.columns if c in df.columns]), result_df],
+        axis=1
+    )
+
+    print(
+        "Available indicators:",
+        available_indicators
+    )
+
     print("Missing indicators:", missing_indicators)
 
-    return df, available_indicators, missing_indicators
+    return (df, available_indicators, missing_indicators)
 
 
 # ========================================================================
@@ -263,7 +442,6 @@ def aggregates(dataset):
     
     This is the main aggregation function that processes raw survey data and derives
     all indicators and dimensions based on configuration files. It:
-    - Reads configuration files for the survey level (child, teacher, school)
     - Resolves which columns map to which indicators/dimensions
     - Computes derived dimensions (binning, transformations)
     - Calculates indicators (simple mappings, arithmetic operations, aggregations)
@@ -282,21 +460,27 @@ def aggregates(dataset):
     """
     df = dataset.df
     metadata = dataset.metadata
-    
-    context = get_project_context(start_path=Path(__file__).resolve())
-    config_dir = context["config_dir"]
+
+    load_dotenv()
+
+    supabase = create_client(
+        os.getenv("SUPABASE_URL"),
+        os.getenv("SUPABASE_KEY")
+        )
 
     # Calculate dimensions and indicators
-    df, available_dimensions, missing_dimensions = calculate_dims(df, config_dir)
-    df, available_indicators, missing_indicators = calculate_indicators(df, metadata, config_dir)
+    df, available_dimensions, missing_dimensions = calculate_dims(df, metadata)
+    df, available_indicators, missing_indicators = calculate_indicators(df, metadata)
 
-    # Build summary and update dataset
-    df_summary = {
-        "available_dimensions": available_dimensions,
-        "missing_dimensions": missing_dimensions,
-        "available_indicators": available_indicators,
-        "missing_indicators": missing_indicators
-    }
+    # The log row was already created by update_log() during ingest; update it by form_id and country
+    log_update = supabase.table("import_log").update({
+            "available_dimensions": available_dimensions,
+            "missing_dimensions": missing_dimensions,
+            "available_indicators": available_indicators,
+            "missing_indicators": missing_indicators
+            }).eq("form_id", metadata["form_id"]).execute()
+    
+
     if 'uid' in df.columns:
         df_short = df[['uid'] + available_dimensions + available_indicators + ["_uuid"]]
     else:
@@ -304,6 +488,5 @@ def aggregates(dataset):
 
     dataset.df = df
     dataset.df_short = df_short
-    dataset.df_summary = df_summary
 
     return dataset

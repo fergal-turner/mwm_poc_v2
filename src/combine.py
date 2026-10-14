@@ -1,4 +1,4 @@
-"""Combine module: merges aggregated datasets into level-level combined files.
+﻿"""Combine module: merges aggregated datasets into level-level combined files.
 
 Public API
 ----------
@@ -7,10 +7,10 @@ Public API
     # After running ingest + aggregate on a new dataset:
     combined = add_to_combined(dataset, output_dir)
 
-    # combined.df_short   – deduplicated combined DataFrame for this level/country
-    # combined.df_summary – union of available/missing indicators & dimensions
+    # combined.df_short   â€“ deduplicated combined DataFrame for this level/country
+    # combined.df_summary â€“ union of available/missing indicators & dimensions
     #                       across all datasets merged so far
-    # combined.metadata   – dict with level, country, row count, source form IDs
+    # combined.metadata   â€“ dict with level, country, row count, source form IDs
 
 Notes
 -----
@@ -26,123 +26,97 @@ Notes
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
-from typing import Any
-from src.output import CONFIG_DIR
-from src.utils import get_project_context
+import os
 
 import pandas as pd
-
-
-# ========================================================================
-# COMBINED DATASET OBJECT
-# ========================================================================
-
-class CombinedDataSet:
-    """Represents the combined, deduplicated data for one level + country.
-
-    Attributes
-    ----------
-    df_short : pd.DataFrame
-        Deduplicated rows containing only indicator/dimension/uuid columns.
-    df_summary : dict
-        ``available_*`` and ``missing_*`` lists reflecting the *union* of
-        indicators and dimensions found across all constituent datasets.
-    metadata : dict
-        level, country, row_count, source_form_ids, output_path.
-    """
-
-    def __init__(
-        self,
-        df_short: pd.DataFrame,
-        df_summary: dict[str, list],
-        metadata: dict[str, Any],
-    ) -> None:
-        self.df_short   = df_short
-        self.df_summary = df_summary
-        self.metadata   = metadata
-
-    def __repr__(self) -> str:  # pragma: no cover
-        return (
-            f"CombinedDataSet(level={self.metadata.get('level')!r}, "
-            f"country={self.metadata.get('country')!r}, "
-            f"rows={len(self.df_short)})"
-        )
+from supabase import create_client
 
 
 # ========================================================================
 # SUMMARY HELPERS
 # ========================================================================
 
-def _merge_summaries(existing: dict, new: dict) -> dict:
-    """Return a summary whose available_* lists are the union of both inputs
-    and whose missing_* lists are those absent from *both* inputs."""
-    available_dims  = sorted(set(existing.get("available_dimensions", []))
-                             | set(new.get("available_dimensions", [])))
-    available_inds  = sorted(set(existing.get("available_indicators", []))
-                             | set(new.get("available_indicators", [])))
-
-    # A dimension/indicator is only truly missing if neither dataset has it.
-    missing_dims = sorted(set(existing.get("missing_dimensions", []))
-                          & set(new.get("missing_dimensions", [])))
-    missing_inds = sorted(set(existing.get("missing_indicators", []))
-                          & set(new.get("missing_indicators", [])))
-
-    return {
-        "available_dimensions": available_dims,
-        "missing_dimensions":   missing_dims,
-        "available_indicators": available_inds,
-        "missing_indicators":   missing_inds,
-    }
+UPSERT_CHUNK = 2000
 
 
-def _load_summary(summary_path: Path) -> dict:
-    """Load a summary JSON file from disk if it exists, otherwise return empty summary.
-    
-    The summary tracks which indicators and dimensions are available vs. missing
-    across all datasets merged for a particular level/country combination.
-    
-    Parameters
-    ----------
-    summary_path : Path
-        Path to the summary JSON file
+def fetch_all(client, table, page_size=2000, country=None):
+    """Read every row of a table (optionally one country, case-insensitive), paging past the API's row cap."""
+    rows, start = [], 0
+    while True:
+        query = client.table(table).select("*")
+        if country:
+            query = query.ilike("country", country)
+        batch = query.range(start, start + page_size - 1).execute().data
+        rows.extend(batch)
+        if len(batch) < page_size:
+            return rows
+        start += page_size
+
+
+def build_agg_dict(config_df):
+    return dict(
+        zip(
+            config_df["id"],
+            config_df["agg_method"]
+        )
+    )
+
+def aggregate_to_school_month(df, dim_agg_dict, indicator_agg_dict):
+
         
-    Returns
-    -------
-    dict
-        Dictionary with 'available_*' and 'missing_*' lists for indicators and dimensions
-    """
-    if summary_path.exists():
-        with open(summary_path, encoding="utf-8") as f:
-            return json.load(f)
-    return {
-        "available_dimensions": [],
-        "missing_dimensions":   [],
-        "available_indicators": [],
-        "missing_indicators":   [],
-    }
+        agg_dict = {
+            **dim_agg_dict,
+            **indicator_agg_dict
+        }
 
+        agg_dict = {
+            k: v
+            for k, v in agg_dict.items()
+            if k in df.columns
+            and k not in ["school_id", "date_time"]
+        }
 
-def _save_summary(summary: dict, summary_path: Path) -> None:
-    """Persist a summary dictionary to a JSON file.
-    
-    Parameters
-    ----------
-    summary : dict
-        Dictionary with 'available_*' and 'missing_*' lists
-    summary_path : Path
-        Path where the summary JSON should be written
-    """
-    with open(summary_path, "w", encoding="utf-8") as f:
-        json.dump(summary, f, indent=2)
+        df = df.copy()
 
+        if df.empty or "date_time" not in df.columns:
+            return pd.DataFrame(columns=["country", "school_id", "date_time"])
+
+        if "country" not in df.columns:
+            df["country"] = "unknown"
+
+        df["country"] = df["country"].fillna("unknown")
+
+        df["date_time"] = pd.to_datetime(
+            df["date_time"],
+            errors="coerce"
+        )
+
+        grouped = (
+            df.groupby(
+                [
+                    "country",
+                    "school_id",
+                    df["date_time"].dt.to_period("M")
+                ],
+                dropna=False
+            )
+            .agg(agg_dict)
+            .reset_index()
+        )
+
+        indicator_cols = [
+            c
+            for c in indicator_agg_dict
+            if c in grouped.columns
+        ]
+
+        return grouped[["country", "school_id", "date_time", *indicator_cols]]
 
 # ========================================================================
 # CORE FUNCTION
 # ========================================================================
 
-def add_to_combined(dataset, output_dir: Path | str) -> CombinedDataSet:
+def combined_df(dataset):
     """Merge *dataset* into the persisted combined file for its level/country.
 
     Parameters
@@ -163,73 +137,57 @@ def add_to_combined(dataset, output_dir: Path | str) -> CombinedDataSet:
     ------
     ValueError
         If *dataset* has not been aggregated (missing ``.df_short``).
+
+
     """
     if not hasattr(dataset, "df_short") or dataset.df_short is None:
         raise ValueError(
             "dataset.df_short is not set. Run aggregates(dataset) before add_to_combined()."
         )
 
-    output_dir = Path(output_dir)
-    country    = dataset.metadata.get("country", "unknown")
-    level      = dataset.metadata.get("level", "unknown")
-    form_id    = dataset.metadata.get("form_id", "unknown")
-
-    table_dir    = output_dir / country / "tables"
-    csv_path     = table_dir / f"combined_{level}_level.csv"
-    summary_path = table_dir / f"combined_{level}_summary.json"
-
-    table_dir.mkdir(parents=True, exist_ok=True)
+    supabase = create_client(
+        os.getenv("SUPABASE_URL"),
+        os.getenv("SUPABASE_KEY")
+    )
+    
+    level = dataset.metadata.get("level", "unknown")
 
     # --- Incoming data ---
     df_new = dataset.df_short.copy()
+
+    # Backfill country and date_time from metadata when missing
+    if "country" not in df_new.columns:
+        df_new["country"] = dataset.metadata.get("country", "unknown")
+    if "date_time" not in df_new.columns:
+        date_val = dataset.metadata.get("first_submission")
+        df_new["date_time"] = str(date_val) if date_val else "unknown"
 
     if "date_time" in df_new.columns:
         df_new["date_time"] = df_new["date_time"].astype(str)
 
     df_new["_uuid"] = df_new["_uuid"].astype(str)
 
-    # --- Merge with existing combined file (if any) ---
-    if csv_path.exists():
-        df_existing = pd.read_csv(csv_path, dtype={"_uuid": "string"})
-        df_existing["_uuid"] = df_existing["_uuid"].astype("string").str.strip()
-        df_combined = pd.concat([df_existing, df_new], ignore_index=True)
-    else:
-        df_combined = df_new
+    df_new = df_new.drop_duplicates(subset="_uuid", keep="last")
 
-    df_combined = df_combined.drop_duplicates(subset="_uuid")
+    # NaN/NaT are not valid JSON; convert to None before syncing
+    df_new = df_new.astype(object).where(pd.notna(df_new), None)
 
-    if "date_time" in df_combined.columns:
-        df_combined["date_time"] = df_combined["date_time"].astype(str)
+    # Upsert only the incoming rows (conflict on the table's primary key, _uuid) in chunks
+    # to avoid statement timeouts; existing rows are left untouched.
+    records = df_new.to_dict(orient="records")
+    table = supabase.table(f"combined_{level}_level")
+    for start in range(0, len(records), UPSERT_CHUNK):
+        table.upsert(records[start:start + UPSERT_CHUNK]).execute()
 
-    df_combined["_uuid"] = df_combined["_uuid"].astype(str)
+    return df_new
 
-    # --- Persist CSV ---
-    df_combined.to_csv(csv_path, index=False)
-
-    # --- Merge summaries ---
-    existing_summary = _load_summary(summary_path)
-    merged_summary   = _merge_summaries(existing_summary, dataset.df_summary)
-    _save_summary(merged_summary, summary_path)
-
-    # --- Collate source form IDs ---
-    existing_ids = existing_summary.get("source_form_ids", [])
-    if form_id not in existing_ids:
-        existing_ids.append(form_id)
-    merged_summary["source_form_ids"] = existing_ids
-    _save_summary(merged_summary, summary_path)
-
-    metadata = {
-        "level":           level,
-        "country":         country,
-        "row_count":       len(df_combined),
-        "source_form_ids": merged_summary["source_form_ids"],
-        "output_path":     str(csv_path),
-    }
-
-    return CombinedDataSet(df_short=df_combined, df_summary=merged_summary, metadata=metadata)
-
-def school_combined(dataset, output_dir: Path | str) -> pd.DataFrame:
+def school_combined(dataset=None, country=None, rollup=True):
     """Aggregate child and teacher level data into school-level combined dataset.
+
+    dataset is optional: with only ``country`` the school-month table is rebuilt from the
+    child, teacher and school data already in Supabase (used after any form is loaded).
+    With rollup=False and a school dataset, only that form's own columns are upserted
+    and the child/teacher tables are not downloaded.
     
     This function takes child and teacher level combined datasets and aggregates them
     to the school level using configured aggregation methods (mean, sum, etc.).
@@ -250,83 +208,95 @@ def school_combined(dataset, output_dir: Path | str) -> pd.DataFrame:
     CombinedDataSet
         The aggregated school-level combined dataset
     """
-    country = dataset.metadata.get("country", "unknown")
 
-    context = get_project_context()
-    CONFIG_DIR = context["config_dir"]
+    supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
 
-    output_dir = Path(output_dir)
-    country = dataset.metadata.get("country", "unknown")
-    form_id = dataset.metadata.get("form_id", "unknown")
+    dim_config = pd.DataFrame(supabase.table("dimensions")
+                              .select("*")
+                              .execute()
+                              .data)
+    child_config = pd.DataFrame(supabase.table("indicators")
+                                .select("*")
+                                .eq("level", "child")
+                                .execute()
+                                .data)
+    teacher_config = pd.DataFrame(supabase.table("indicators")
+                                    .select("*")
+                                    .eq("level", "teacher")
+                                    .execute()
+                                    .data)
+    school_config = pd.DataFrame(supabase.table("indicators")
+                                 .select("*")
+                                 .eq("level", "school")
+                                 .execute()
+                                 .data)
 
-    table_dir = output_dir / country / "tables"
-    csv_path = table_dir / "combined_school_level.csv"
-    summary_path = table_dir / "combined_school_summary.json"
+    dim_agg_dict = build_agg_dict(dim_config)
+    child_agg_dict = build_agg_dict(child_config)
+    teacher_agg_dict = build_agg_dict(teacher_config)
+    school_agg_dict = build_agg_dict(school_config)
 
-    with open(CONFIG_DIR / "dimensions_config.json", "r", encoding="utf-8") as f:
-        dimensions_config = json.load(f)
-    dim_agg_dict = dict(zip([d["id"] for d in dimensions_config["dimensions"]], [d["agg_method"] for d in dimensions_config["dimensions"]]))
 
-    with open(CONFIG_DIR / "child_config.json", "r", encoding="utf-8") as f:
-        child_config = json.load(f)
-    child_agg_dict = dict(zip([i["id"] for i in child_config["indicators"]], [i["agg_method"] for i in child_config["indicators"]]))
+    if country is None and dataset is not None:
+        country = dataset.metadata.get("country")
+    if rollup and not country:
+        raise ValueError("A country is required to roll up to school level.")
 
-    with open(CONFIG_DIR / "teacher_config.json", "r", encoding="utf-8") as f:
-        teacher_config = json.load(f)
-    teacher_agg_dict = dict(zip([i["id"] for i in teacher_config["indicators"]], [i["agg_method"] for i in teacher_config["indicators"]]))
+    if rollup:
+        child_combined = pd.DataFrame(fetch_all(supabase, "combined_child_level", country=country))
+        child_inds = aggregate_to_school_month(child_combined, dim_agg_dict, child_agg_dict)
 
-    with open(CONFIG_DIR / "school_config.json", "r", encoding="utf-8") as f:
-        school_config = json.load(f)
-    school_agg_dict = dict(zip([i["id"] for i in school_config["indicators"]], [i["agg_method"] for i in school_config["indicators"]]))
+        teacher_combined = pd.DataFrame(fetch_all(supabase, "combined_teacher_level", country=country))
+        teacher_inds = aggregate_to_school_month(teacher_combined, dim_agg_dict, teacher_agg_dict)
 
-    child_combined = pd.read_csv(output_dir / country / "tables" / "combined_child_level.csv")
-    agg_dict = {**dim_agg_dict, **child_agg_dict}
-    agg_dict = {k: v for k, v in agg_dict.items() if k in child_combined.columns}
-    agg_dict = {k: v for k, v in agg_dict.items() if k not in ["school", "date_time"]}
-    if "date_time" in child_combined.columns:
-        child_combined["date_time"] = pd.to_datetime(child_combined["date_time"], errors="coerce")
-    child_grouped = (
-        child_combined
-        .groupby(["school", child_combined["date_time"].dt.to_period("M")], dropna=False)
-        .agg(agg_dict)
-        .reset_index()
-    )
-    child_inds = child_grouped.drop(columns=[d for d in dim_agg_dict.keys() if d in child_grouped.columns and d not in ["school", "date_time"]])
+    if dataset is not None:
+        school_new = dataset.df_short.copy()
+    else:
+        school_new = pd.DataFrame(columns=["country", "school_id", "date_time"])
 
-    teacher_combined = pd.read_csv(output_dir / country / "tables" / "combined_teacher_level.csv")
-    agg_dict = {**dim_agg_dict, **teacher_agg_dict}
-    agg_dict = {k: v for k, v in agg_dict.items() if k in teacher_combined.columns}
-    agg_dict = {k: v for k, v in agg_dict.items() if k not in ["school", "date_time"]}
-    if "date_time" in teacher_combined.columns:
-        teacher_combined["date_time"] = pd.to_datetime(teacher_combined["date_time"], errors="coerce")
-    teacher_grouped = (
-        teacher_combined
-        .groupby(["school", teacher_combined["date_time"].dt.to_period("M")], dropna=False)
-        .agg(agg_dict)
-        .reset_index()
-    )
-    teacher_inds = teacher_grouped.drop(columns=[d for d in dim_agg_dict.keys() if d in teacher_grouped.columns and d not in ["school", "date_time"]])
+    if "country" not in school_new.columns:
+        school_new["country"] = dataset.metadata.get("country", "unknown")
 
-    school_new = dataset.df_short.copy()
+    school_new["country"] = school_new["country"].fillna("unknown")
 
-    if "date_time" in school_new.columns:
+    if "date_time" in school_new.columns and not school_new.empty:
         school_new["date_time"] = pd.to_datetime(school_new["date_time"], errors="coerce")
         school_new["date_time"] = school_new["date_time"].dt.to_period("M")
 
         school_agg = {**dim_agg_dict, **school_agg_dict}
-        school_agg = {k: v for k, v in school_agg.items() if k in school_new.columns}
-        school_agg = {k: v for k, v in school_agg.items() if k not in ["school", "date_time"]}
+        school_agg = {k: v for k, v in school_agg.items() if k in school_new.columns and k not in ["country", "school_id", "date_time"]}
 
         school_new_grouped = (
-            school_new.groupby(["school", "date_time"], dropna=False)
+            school_new.groupby(["country", "school_id", "date_time"], dropna=False)
             .agg(school_agg)
             .reset_index()
         )
     else:
-        school_new_grouped = pd.DataFrame(columns=["school", "date_time"])
+        school_new_grouped = pd.DataFrame(columns=["country", "school_id", "date_time"])
 
-    if csv_path.exists():
-        school_existing = pd.read_csv(csv_path)
+    if not rollup:
+        school_grouped = school_new_grouped
+        school_ids = school_config["id"].unique()
+        final_cols = ["country", "school_id", "date_time",
+                      *[d for d in dim_config["id"] if d in school_grouped.columns],
+                      *[i for i in school_ids if i in school_grouped.columns]]
+        school_grouped = school_grouped.loc[:, list(dict.fromkeys(final_cols))]
+        school_grouped["date_time"] = school_grouped["date_time"].astype(str)
+        school_grouped = school_grouped.astype(object).where(pd.notna(school_grouped), None)
+        records = school_grouped.to_dict("records")
+        table = supabase.table("combined_school_level")
+        for start in range(0, len(records), UPSERT_CHUNK):
+            table.upsert(records[start:start + UPSERT_CHUNK], on_conflict="country,school_id,date_time").execute()
+        return
+
+    school_existing = pd.DataFrame(fetch_all(supabase, "combined_school_level", country=country))
+
+    if not school_existing.empty:
+        if "country" not in school_existing.columns:
+            school_existing["country"] = "unknown"
+
+        school_existing["country"] = school_existing["country"].fillna("unknown")
+
         school_existing["date_time"] = pd.PeriodIndex(
             pd.to_datetime(school_existing["date_time"], errors="coerce"),
             freq="M",
@@ -344,14 +314,14 @@ def school_combined(dataset, output_dir: Path | str) -> pd.DataFrame:
         rollup_agg = {k: v for k, v in school_agg_dict.items() if k in school_grouped.columns}
         school_grouped = (
             school_grouped
-            .groupby(["school", "date_time"], as_index=False, dropna=False)
+            .groupby(["country", "school_id", "date_time"], as_index=False, dropna=False)
             .agg(rollup_agg)
         )
     else:
         school_grouped = school_new_grouped
 
-    school_grouped = school_grouped.merge(child_inds, on=["school", "date_time"], how="outer", suffixes=("", "_child"))
-    school_grouped = school_grouped.merge(teacher_inds, on=["school", "date_time"], how="outer", suffixes=("", "_teacher"))
+    school_grouped = school_grouped.merge(child_inds, on=["country", "school_id", "date_time"], how="outer", suffixes=("", "_child"))
+    school_grouped = school_grouped.merge(teacher_inds, on=["country", "school_id", "date_time"], how="outer", suffixes=("", "_teacher"))
 
     # Coalesce suffixed columns back to base names so existing null columns do not shadow fresh values.
     for suffix in ["_child", "_teacher"]:
@@ -365,83 +335,45 @@ def school_combined(dataset, output_dir: Path | str) -> pd.DataFrame:
                 school_grouped = school_grouped.rename(columns={suffixed: base})
 
     allowed_dimensions = [
-        d["id"] for d in dimensions_config["dimensions"]
-        if d["id"] in school_grouped.columns
-    ]
+                        d
+                        for d in dim_config["id"]
+                        if d in school_grouped.columns
+                    ]
+    
     allowed_indicators = [
-        ind["id"] for cfg in (school_config["indicators"], child_config["indicators"], teacher_config["indicators"])
-        for ind in cfg
-        if ind["id"] in school_grouped.columns
-    ]
+        i
+        for i in pd.concat(
+            [
+                child_config["id"],
+                teacher_config["id"],   
+                school_config["id"]
+            ]
+        ).unique()
+        if i in school_grouped.columns
+        ]
 
-    final_cols = ["school", "date_time", *allowed_dimensions, *allowed_indicators]
+    final_cols = ["country", "school_id", "date_time", *allowed_dimensions, *allowed_indicators]
     final_cols = [c for c in dict.fromkeys(final_cols) if c in school_grouped.columns]
     school_grouped = school_grouped.loc[:, final_cols]
 
-    def build_summary_from_df(df: pd.DataFrame) -> dict:
-        all_dimensions = [d["id"] for d in dimensions_config["dimensions"]]
-        all_indicators = [
-            ind["id"]
-            for cfg in (school_config["indicators"], child_config["indicators"], teacher_config["indicators"])
-            for ind in cfg
-        ]
-        available_dimensions = [d for d in all_dimensions if d in df.columns]
-        available_indicators = list(dict.fromkeys([i for i in all_indicators if i in df.columns]))
+    # Period dtypes and NaN/NaT are not JSON serializable; convert before syncing
+    school_grouped["date_time"] = school_grouped["date_time"].astype(str)
+    school_grouped = school_grouped.astype(object).where(pd.notna(school_grouped), None)
 
-        return {
-            "available_dimensions": available_dimensions,
-            "missing_dimensions": [d for d in all_dimensions if d not in df.columns],
-            "available_indicators": available_indicators,
-            "missing_indicators": [i for i in all_indicators if i not in df.columns],
-        }
+    records = school_grouped.to_dict("records")
+    table = supabase.table("combined_school_level")
+    for start in range(0, len(records), UPSERT_CHUNK):
+        table.upsert(records[start:start + UPSERT_CHUNK], on_conflict="country,school_id,date_time").execute()
 
-    school_grouped.to_csv(csv_path, index=False)
-
-    existing_summary = _load_summary(summary_path)
-    merged_summary = build_summary_from_df(school_grouped)
-
-    existing_ids = existing_summary.get("source_form_ids", [])
-    if form_id not in existing_ids:
-        existing_ids.append(form_id)
-    merged_summary["source_form_ids"] = existing_ids
-
-    _save_summary(merged_summary, summary_path)
-
-    metadata = {
-        "level": "school",
-        "country": country,
-        "row_count": len(school_grouped),
-        "source_form_ids": merged_summary["source_form_ids"],
-        "output_path": str(csv_path),
-    }
-    return CombinedDataSet(df_short=school_grouped, df_summary=merged_summary, metadata=metadata)
-
-# ========================================================================
-# LOADER  (used by app.py to read persisted combined data)
-# ========================================================================
-
-def load_combined(output_dir: Path | str, country: str, level: str) -> CombinedDataSet | None:
-    """Load a previously built combined dataset from disk.
-
-    Returns ``None`` if no combined file exists yet for this country/level.
-    """
-    output_dir   = Path(output_dir)
-    table_dir    = output_dir / country / "tables"
-    csv_path     = table_dir / f"combined_{level}_level.csv"
-    summary_path = table_dir / f"combined_{level}_summary.json"
-
-    if not csv_path.exists():
-        return None
-
-    df_combined  = pd.read_csv(csv_path, dtype={"_uuid": "string"})
-    df_summary   = _load_summary(summary_path)
-
-    metadata = {
-        "level":           level,
-        "country":         country,
-        "row_count":       len(df_combined),
-        "source_form_ids": df_summary.get("source_form_ids", []),
-        "output_path":     str(csv_path),
-    }
-
-    return CombinedDataSet(df_short=df_combined, df_summary=df_summary, metadata=metadata)
+def combine(dataset, rollup=True):
+    """Persist a dataset to its combined table. With rollup=True (default) the school-month
+    table for the dataset's country is then rebuilt from child, teacher and school data,
+    whatever level this form was. Pass rollup=False when loading several forms and call
+    ``school_combined(country=...)`` once at the end."""
+    level = dataset.metadata.get("level")
+    if level in ["child", "teacher"]:
+        combined_df(dataset)
+        if rollup:
+            school_combined(country=dataset.metadata.get("country"))
+    elif level == "school":
+        school_combined(dataset, rollup=rollup)

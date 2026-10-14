@@ -1,0 +1,19 @@
+country,admin0,admin1,admin2,admin3,location,school_id,school_type,programme_type,school_shift,latitude,longitude,programme_drivers
+Sudan,Sudan,Kassala,Kassala District 2,Community 16,rural,SU-SCH-001,formal_school,aep,morning,16.65858,31.48507,d_05|d_06|d_08
+Sudan,Sudan,Kassala,Kassala District 2,Community 13,rural,SU-SCH-002,formal_school,catch_up,morning,19.29856,31.03631,d_05|d_07|d_08
+Sudan,Sudan,Gedaref,Gedaref District 3,Community 06,rural,SU-SCH-003,temporary_learning_space,formal,morning,12.03042,27.77278,d_05|d_06|d_07
+Sudan,Sudan,Gedaref,Gedaref District 2,Community 15,urban,SU-SCH-004,formal_school,catch_up,morning,13.95978,38.98942,d_06|d_07|d_08
+Sudan,Sudan,Kassala,Kassala District 4,Community 18,urban,SU-SCH-005,formal_school,formal,afternoon,16.46054,40.14156,d_05|d_07|d_08
+Sudan,Sudan,White Nile,White Nile District 4,Community 13,rural,SU-SCH-006,formal_school,formal,afternoon,13.92531,35.02406,d_08
+Sudan,Sudan,Gedaref,Gedaref District 2,Community 09,rural,SU-SCH-007,temporary_learning_space,catch_up,afternoon,19.55271,35.24477,d_05|d_07|d_08
+Sudan,Sudan,White Nile,White Nile District 1,Community 17,rural,SU-SCH-008,formal_school,non_formal,afternoon,26.4281,31.59581,d_07|d_08
+Sudan,Sudan,Kassala,Kassala District 2,Community 12,urban,SU-SCH-009,formal_school,catch_up,morning,23.82903,43.72332,d_05|d_06|d_08
+Sudan,Sudan,White Nile,White Nile District 3,Community 19,rural,SU-SCH-010,community_space,aep,morning,16.62043,38.00853,d_06|d_07|d_08
+Sudan,Sudan,Gedaref,Gedaref District 2,Community 17,rural,SU-SCH-011,formal_school,aep,morning,30.56472,29.35144,d_05|d_08
+Sudan,Sudan,Kassala,Kassala District 2,Community 16,rural,SU-SCH-012,formal_school,non_formal,afternoon,15.63188,40.49972,d_05|d_06|d_07|d_08
+Sudan,Sudan,Gedaref,Gedaref District 3,Community 18,rural,SU-SCH-013,formal_school,formal,morning,16.4066,36.60349,d_06|d_08
+Sudan,Sudan,White Nile,White Nile District 2,Community 02,rural,SU-SCH-014,formal_school,aep,morning,28.56697,40.12331,d_05|d_06|d_07
+Sudan,Sudan,Gedaref,Gedaref District 4,Community 03,urban,SU-SCH-015,temporary_learning_space,formal,morning,32.81055,27.39068,d_07
+Sudan,Sudan,Gedaref,Gedaref District 4,Community 03,rural,SU-SCH-016,temporary_learning_space,non_formal,morning,19.03399,42.2672,d_07
+Sudan,Sudan,Gedaref,Gedaref District 3,Community 09,rural,SU-SCH-017,temporary_learning_space,catch_up,morning,26.02889,29.6116,d_05|d_06|d_07|d_08
+Sudan,Sudan,White Nile,White Nile District 1,Community 02,rural,SU-SCH-018,formal_school,formal,morning,13.94042,36.99316,d_05|d_06|d_07|d_08

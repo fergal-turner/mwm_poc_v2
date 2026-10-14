@@ -1,0 +1,37 @@
+﻿id,type,columns,values,operation,bins,agg_method,description,active
+date_time,ordinal,_submission_time,,,,last,,TRUE
+admin0,categorical,"country,country_name,nation,location_country",,,,first,,TRUE
+admin1,categorical,"admin1,region,state,province,governorate,governorate_name,county,zone,department,oblast,prefecture,division,region_name,state_name,province_name",,,,first,,TRUE
+admin2,categorical,"admin2,district,county,subcounty,municipality,city,borough,arrondissement,district_name,county_name,local_government_area,lga",,,,first,,TRUE
+admin3,categorical,"admin3,ward,village,subdistrict,community,parish,sector,cell,block,ward_name,village_name,community_name",,,,first,,TRUE
+location,categorical,location,"urban,rural",,,first,,TRUE
+protection_status,categorical,protection_status,,,,first,,TRUE
+school_id,categorical,"school_id,school,school_name,centre,centre_name,center,center_name",,,,first,,TRUE
+sex,categorical,"sex,gender,child_sex,child_gender","male,female",,,first,,TRUE
+age,ordinal,"age,child_age",,,,last,,TRUE
+disability,categorical,disability_status,"disability,no_disability",,,first,,TRUE
+grade,ordinal,grade,,,,last,,TRUE
+round,categorical,round,"baseline,midline,endline",,,first,,TRUE
+age_group,derived,"age,child_age",,bin,0:5:0-5|6:10:6-10|11:14:11-14,last,,TRUE
+year_month,ordinal,"year_month,reporting_month,month",,,,last,Calendar month in YYYY-MM format,TRUE
+academic_year,categorical,"academic_year,school_year",,,,first,Academic or programme year,TRUE
+term,categorical,"term,school_term",,,,first,School term within the academic year,TRUE
+programme,categorical,"programme,programme_name,intervention",,,,first,Programme or intervention stream,TRUE
+programme_type,categorical,"programme_type,education_programme_type","formal,aep,catch_up,non_formal",,,first,Type of education programme,TRUE
+school_shift,categorical,"school_shift,shift","morning,afternoon,evening",,,first,School shift attended or taught,TRUE
+class_id,categorical,"class_id,class_code,class",,,,first,Class or learning-group identifier,TRUE
+teacher_id,categorical,"teacher_id,teacher_code,facilitator_id",,,,first,Synthetic teacher or facilitator identifier,TRUE
+child_id,categorical,"child_id,learner_id,student_id",,,,first,Synthetic child or learner identifier,TRUE
+displacement_status,categorical,"displacement_status,displacement","host_community,idp,refugee,returnee",,,first,Current displacement category,TRUE
+disability_domain,categorical,"disability_domain,functional_difficulty_domain",,,,first,Primary functional-difficulty domain,TRUE
+home_language,categorical,"home_language,language_home,mother_tongue",,,,first,Language primarily used at home,TRUE
+language_of_instruction,categorical,"language_of_instruction,instruction_language",,,,first,Main language of instruction,TRUE
+enrolment_status,categorical,"enrolment_status,status","enrolled,transferred,completed,dropped_out",,,last,Latest enrolment status in the reporting period,TRUE
+attendance_risk,categorical,attendance_risk,"low,medium,high",,,last,Derived cumulative attendance-risk category,TRUE
+over_age,categorical,over_age,"yes,no",,,first,"Whether the learner is over-age for their grade, entered by the enumerator",TRUE
+teacher_sex,categorical,"teacher_sex,facilitator_sex","male,female",,,first,Teacher or facilitator sex,TRUE
+teacher_contract_type,categorical,"teacher_contract_type,contract_type","salaried,volunteer,temporary,other",,,last,Current teacher contract arrangement,TRUE
+teacher_qualification,categorical,"teacher_qualification,qualification_status",,,,last,Highest relevant teaching qualification category,TRUE
+school_type,categorical,"school_type,learning_space_type","formal_school,temporary_learning_space,community_space,other",,,first,Type of school or learning space,TRUE
+operational_status,categorical,"operational_status,school_status","open,partially_open,closed",,,last,School operational status for the period,TRUE
+shock_type,categorical,"shock_type,incident_type","none,conflict,displacement,flood,extreme_weather,disease,other",,,last,Main shock affecting the school during the period,TRUE

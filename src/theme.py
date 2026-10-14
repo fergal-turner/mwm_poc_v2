@@ -56,6 +56,7 @@ def get_ordinal_colors(n):
 def sc_theme():
     """Apply the Save the Children matplotlib rcParams theme."""
     mpl.rcParams['font.family'] = 'sans-serif'
+    
     mpl.rcParams['font.sans-serif'] = ['Segoe UI', 'Arial']
     mpl.rcParams.update({
         "figure.facecolor":   Colors.grey_100,

@@ -1,0 +1,17 @@
+id,level,type,agg_type,columns,calc_op,calc_by,calc_sum,agg_method,missing_handling,label,description,active,driver_id,driver_level,report_agg
+literacy,child,numeric,simple,literacy_score,,,,mean,,Literacy score,Reading assessment score (0-100),True,d_01,outcome,change_from_baseline
+wellbeing,child,numeric,calculated,"wb_happy,wb_calm,wb_hopeful",mean,,,mean,,Wellbeing,Mean of three wellbeing items (1-5),True,d_02,outcome,change_from_baseline
+perceived_safety,child,numeric,simple,safety_feeling,,,,mean,,Perceived safety,How safe the child feels at school (1-4),True,d_03,outcome,change_from_baseline
+child_attendance_rate,child,numeric,calculated,days_attended,divide,days_enrolled,,mean,,Attendance rate,Days attended / days enrolled,True,d_04,outcome,change_from_baseline
+cpd_sessions_attended,teacher,numeric,simple,cpd_sessions,,,,mean,,CPD sessions attended,CPD sessions the teacher attended this month,True,d_01,implementation_quantity,mean
+teaching_quality_score,teacher,numeric,simple,teaching_quality,,,,mean,,Teaching quality,Classroom observation score (0-100),True,d_01,implementation_quality,mean
+class_size,teacher,numeric,simple,class_size,,,,mean,,Class size,Learners in the class,True,d_01|d_04,context|context,mean
+teacher_wellbeing,teacher,numeric,simple,teacher_wellbeing,,,,mean,,Teacher wellbeing,Teacher wellbeing score (0-100),True,d_01|d_02,context|context,mean
+pss_sessions_delivered,school,numeric,simple,pss_sessions,,,,mean,,PSS sessions delivered,PSS sessions delivered this month,True,d_02,implementation_quantity,mean
+pss_session_fidelity,school,numeric,simple,pss_fidelity,,,,mean,,PSS fidelity,Share of PSS steps delivered as designed (0-100),True,d_02,implementation_quality,mean
+safety_lessons_delivered,school,numeric,simple,safety_lessons,,,,mean,,Safety lessons delivered,Personal-safety lessons delivered this month,True,d_03,implementation_quantity,mean
+safe_environment_score,school,numeric,simple,safe_environment,,,,mean,,Safe environment score,Safe-environment checklist score (0-100),True,d_03,implementation_quality,mean
+caregiver_sessions_held,school,numeric,simple,caregiver_sessions,,,,mean,,Caregiver sessions held,Caregiver sessions held this month,True,d_04,implementation_quantity,mean
+caregiver_attendance_rate,school,numeric,simple,caregiver_attendance,,,,mean,,Caregiver attendance,Share of invited caregivers attending (0-100),True,d_04,implementation_quality,mean
+shock_intensity,school,numeric,simple,shock_intensity,,,,mean,,Shock intensity,Severity of shocks affecting the school (0-3),True,d_02|d_03,context|context,mean
+distance_to_school_km,school,numeric,simple,distance_km,,,,mean,,Distance to school,Mean distance from home to school (km),True,d_03|d_04,context|context,mean

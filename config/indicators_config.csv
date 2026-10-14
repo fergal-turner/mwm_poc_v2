@@ -1,0 +1,86 @@
+﻿id,level,type,agg_type,columns,calc_op,calc_by,calc_sum,agg_method,missing_handling,label,description,active,driver_id,driver_level,report_agg
+haldo_self_concept,child,numeric,calculated,"selname,selage,selcg,selcomm,selgeo,selhope1,selhope1stop,selhope1sup,selhope2,selhope2stop,selhope2sup",mean,,,mean,,,,TRUE,,,
+haldo_empathy,child,numeric,calculated,"selsad,selbetter1,selbetter2,selreason,selfeel",mean,,,mean,,,,TRUE,,,
+haldo_sel,child,numeric,aggregate,"haldo_self_concept,haldo_empathy",mean,,,mean,,,,TRUE,d_07,outcome,change_from_baseline
+haldo_expressive_language,child,numeric,calculated,litexpl1,divide,10,,mean,,,,TRUE,,,
+haldo_letter_identification,child,numeric,calculated,"ltr_row1,ltr_row2",divide,10,TRUE,mean,,,,TRUE,,,
+haldo_accuracy,child,numeric,calculated,litword_eng,divide,55,,mean,,,,TRUE,,,
+haldo_comprehension,child,numeric,calculated,litcomp_eng,divide,5,,mean,,,,TRUE,,,
+haldo_literacy,child,numeric,aggregate,"haldo_expressive_language,haldo_letter_identification,haldo_accuracy,haldo_comprehension",mean,,,mean,skip,,,TRUE,,,
+aser_literacy,child,ordinal,calculated,"reading_letter,reading_word,reading_sentence,reading_paragraph,reading_comprehension",max,,,mean,skip,Literacy (ASER reading level),,TRUE,,,
+aser_numeracy,child,ordinal,calculated,"maths_numrec,maths_numrec2,maths_subtraction,maths_division",max,,,mean,skip,Numeracy (ASER maths level),,TRUE,,,
+time_on_task,teacher,numeric,simple,work,,,,mean,,,,TRUE,,,
+class_management_time,teacher,numeric,simple,manage,,,,mean,,,,TRUE,,,
+facilitation_time,teacher,numeric,simple,facilitation,,,,mean,,,,TRUE,,,
+off_task_behaviour,teacher,ordinal,simple,offtask,,,,mean,,,,TRUE,,,
+disruption_level,teacher,ordinal,simple,disc,,,,mean,,,,TRUE,,,
+literacy_practice,teacher,ordinal,simple,literacy,,,,mean,,,,TRUE,,,
+numeracy_practice,teacher,ordinal,simple,numeracy,,,,mean,,,,TRUE,,,
+sel_practice,teacher,ordinal,simple,sel,,,,mean,,,,TRUE,,,
+student_teacher_ratio,teacher,numeric,simple,ratio,,,,mean,,,,TRUE,,,
+learning_resources,teacher,ordinal,simple,resources,,,,mean,,,,TRUE,,,
+gender_responsiveness,teacher,ordinal,simple,gender,,,,mean,,,,TRUE,,,
+safe_environment,teacher,ordinal,simple,safe,,,,mean,,,,TRUE,d_02|d_08,context|context,mean
+rtl_use,teacher,ordinal,simple,rtl,,,,mean,,,,TRUE,,,
+lesson_preparedness,teacher,ordinal,simple,prep,,,,mean,,,,TRUE,,,
+pta_active,school,categorical,simple,pta_active,,,,last,,,,TRUE,,,
+school_management_committee_active,school,categorical,simple,smc_active,,,,last,,,,TRUE,,,
+plc_frequency,school,numeric,simple,plc_frequency,,,,last,,,,TRUE,,,
+safeguarding_policy,school,categorical,simple,safeguarding_policy,,,,last,,,,TRUE,d_03,context,last
+haldo_numeracy,child,numeric,aggregate,"haldo_number_identification,haldo_arithmetic,haldo_problem_solving",mean,,,mean,skip,Numeracy (HALDO),Mean of available HALDO numeracy domains,TRUE,d_01,outcome,end_minus_base
+child_attendance_rate,child,numeric,calculated,"days_attended,days_enrolled",divide,days_enrolled,,mean,skip,Attendance rate,Days attended divided by possible attendance days while enrolled,TRUE,d_01,implementation_quality,mean
+chronic_absence,child,categorical,calculated,child_attendance_rate,threshold,0.9,,mean,skip,Chronic absence,Learner attended less than 90% of possible days,TRUE,,,
+retained_in_programme,child,categorical,simple,retained_in_programme,,,,mean,skip,Retained in programme,Learner remains enrolled through the defined programme cycle,TRUE,d_01,implementation_quality,mean
+programme_completed,child,categorical,simple,programme_completed,,,,mean,skip,Programme completion,"Learner completed the grade, level or programme",TRUE,,,
+certified_or_transitioned,child,categorical,calculated,"certified,transitioned_formal,transitioned_further",any,,,mean,skip,Certified or transitioned,Learner certified or transitioned to formal or further education,TRUE,d_01,outcome,mean
+wellbeing_score,child,numeric,simple,"wellbeing_score,ru_well_score",,,,mean,skip,Child wellbeing,Validated child wellbeing scale score,TRUE,d_02,outcome,change_from_baseline
+perceived_safety,child,ordinal,simple,"perceived_safety,safety_score",,,,mean,skip,Perceived safety,"Child-reported safety in, to and from the learning space",TRUE,d_02|d_03,outcome|outcome,change_from_baseline
+unsafe_situation_knowledge,child,numeric,calculated,"unsafe_identification_items,unsafe_reporting_items",mean,,,mean,skip,Safety knowledge,Share of unsafe-situation identification and reporting items answered correctly,TRUE,d_03,outcome,change_from_baseline
+mhpss_participation,child,numeric,simple,mhpss_sessions_attended,,,,sum,zero,MHPSS participation,Number of structured MHPSS sessions attended in the period,TRUE,d_02,implementation_quantity,mean
+pss_play_participation,child,numeric,simple,pss_play_sessions_attended,,,,sum,zero,PSS/play participation,Number of structured recreational or psychosocial play sessions attended,TRUE,d_08,implementation_quantity,mean
+positive_feedback,teacher,ordinal,simple,positive_feedback,,,,mean,skip,Positive feedback,Observed quality and frequency of constructive feedback,TRUE,d_05,implementation_quality,mean
+check_for_understanding,teacher,ordinal,simple,check_for_understanding,,,,mean,skip,Checks for understanding,Observed use of checks for learner understanding,TRUE,,,
+cognitive_challenge,teacher,ordinal,simple,cognitive_challenge,,,,mean,skip,Cognitive challenge,"Observed opportunities for analysis, reasoning and problem solving",TRUE,,,
+differentiation,teacher,ordinal,simple,differentiation,,,,mean,skip,Differentiation,Observed adaptation of teaching to learner needs and levels,TRUE,,,
+student_participation,teacher,ordinal,simple,student_participation,,,,mean,skip,Student participation,Observed breadth and quality of learner participation,TRUE,,,
+positive_discipline,teacher,ordinal,simple,positive_discipline,,,,mean,skip,Positive discipline,"Observed use of non-violent, constructive classroom discipline",TRUE,d_03,implementation_quality,mean
+disability_inclusive_practice,teacher,ordinal,simple,disability_inclusive_practice,,,,mean,skip,Disability-inclusive practice,Observed adaptations and participation support for learners with disabilities,TRUE,d_06,implementation_quality,mean
+inclusive_practice_index,teacher,numeric,aggregate,"gender_responsiveness,disability_inclusive_practice,differentiation,student_participation",mean,,,mean,skip,Inclusive practice index,Mean of available gender- and disability-inclusive classroom-practice domains,TRUE,d_06,outcome,change_from_baseline
+teaching_practice_index,teacher,numeric,aggregate,"class_management_time,facilitation_time,literacy_practice,numeracy_practice,sel_practice,positive_feedback,check_for_understanding,cognitive_challenge,differentiation,student_participation,positive_discipline,lesson_preparedness",mean,,,mean,skip,Teaching practice index,Mean of available observed teaching-practice domains,TRUE,d_05,outcome,change_from_baseline
+teacher_attendance_rate,teacher,numeric,calculated,"days_present,days_expected",divide,days_expected,,mean,skip,Teacher attendance rate,Days present divided by days expected to teach,TRUE,,,
+cpd_events_attended,teacher,numeric,simple,"cpd_events_attended,coaching_sessions_attended,tlc_sessions_attended",,,,sum,zero,CPD support dosage,"Structured CPD, coaching, mentoring or learning-circle events attended",TRUE,d_05,implementation_quantity,mean
+inclusive_training_completed,teacher,categorical,simple,inclusive_training_completed,,,,mean,skip,Inclusive training completed,Teacher completed inclusive-education and positive-discipline training,TRUE,d_06,implementation_quantity,mean
+teacher_inclusion_knowledge,teacher,numeric,simple,"teacher_inclusion_knowledge,inclusion_knowledge_score",,,,mean,skip,Inclusion knowledge and attitudes,Teacher knowledge and attitude score for disability and gender inclusion,TRUE,d_06,outcome,change_from_baseline
+teacher_wellbeing,teacher,numeric,simple,"teacher_wellbeing,wellbeing_scale",,,,mean,skip,Teacher wellbeing,Teacher wellbeing or psychological health scale score,TRUE,d_05,context,mean
+teacher_stress_burnout,teacher,numeric,simple,"teacher_stress_burnout,burnout_score,stress_score",,,,mean,skip,Teacher stress or burnout,Validated stress or burnout scale score,TRUE,d_05,outcome,mean
+class_size,teacher,numeric,simple,"class_size,learners_enrolled",,,,mean,skip,Class size,Number of learners enrolled in the observed or assigned class,TRUE,d_05,context,last
+building_condition,school,ordinal,simple,building_condition,,,,last,skip,Building condition,Overall condition of school buildings and learning spaces,TRUE,,,
+classroom_adequacy,school,numeric,calculated,"usable_classrooms,required_classrooms",divide,required_classrooms,,last,skip,Classroom adequacy,Usable classrooms as a share of classrooms required for current enrolment,TRUE,,,
+wash_functionality,school,numeric,aggregate,"water_functional,toilets_functional,handwashing_functional",mean,,,last,skip,WASH functionality,"Mean availability of functional water, toilets and handwashing facilities",TRUE,,,
+physical_accessibility,school,numeric,aggregate,"accessible_entrance,accessible_classrooms,accessible_toilet",mean,,,last,skip,Physical accessibility,Mean availability of key physical accessibility features,TRUE,d_06,context,mean
+learning_material_adequacy,school,numeric,calculated,"learning_material_sets,learners_enrolled",divide,learners_enrolled,,last,skip,Learning material adequacy,Learning-material sets available per enrolled learner,TRUE,,,
+school_closure_days,school,numeric,simple,"school_closure_days,days_closed",,,,sum,zero,School closure days,Number of planned school days lost in the reporting period,TRUE,d_01|d_07,context|context,last
+shock_intensity,school,numeric,aggregate,"closure_days_shock,newly_displaced_enrolment,security_incidents,resource_disruption_days",mean,,,mean,skip,School shock intensity,"Composite of disruption, displacement pressure, security incidents and resource interruption",TRUE,d_01,context,last
+referral_mechanism_functioning,school,categorical,calculated,"referral_pathway_exists,referral_focal_point,referral_log_used",all,,,mean,skip,Functioning referral mechanism,"Referral pathway, focal point and active referral log are all present",TRUE,d_02,implementation_quantity,last
+pss_quality_standard,school,categorical,calculated,"pss_structured,pss_goal_oriented,pss_evidence_informed,pss_targeted",count_at_least,3,,mean,skip,PSS quality standard met,At least three of four PSS quality attributes are met,TRUE,d_02,implementation_quality,last
+code_of_conduct_functioning,school,categorical,calculated,"code_exists,code_enforced,code_communicated",all,,,mean,skip,Functioning code of conduct,"Code exists, is enforced and has been communicated to staff and community",TRUE,d_03,implementation_quality,last
+safety_training_reach,school,numeric,simple,staff_trained_safety_positive_discipline,,,,sum,zero,Safety training reach,Number of head teachers and teachers trained in bullying prevention and positive discipline,TRUE,d_03,implementation_quantity,last
+personal_safety_lessons,school,numeric,simple,personal_safety_lessons_delivered,,,,sum,zero,Personal-safety lessons delivered,Number of personal-safety lessons delivered in the reporting period,TRUE,d_03,implementation_quantity,last
+pss_sessions_delivered,school,numeric,simple,"pss_sessions_delivered,structured_pss_sessions",,,,sum,zero,PSS sessions delivered,Number of structured psychosocial or recreational sessions delivered,TRUE,d_07,implementation_quantity,last
+pss_curriculum_fidelity,school,numeric,calculated,"pss_activities_delivered,pss_activities_planned",divide,pss_activities_planned,,mean,skip,PSS curriculum fidelity,Share of planned structured PSS activity types delivered,TRUE,d_07,implementation_quality,last
+active_learning_circle_groups,school,numeric,simple,active_learning_circle_groups,,,,last,zero,Active learning-circle groups,Number of teacher learning-circle groups meeting the activity standard,TRUE,d_05,implementation_quantity,last
+cpd_session_fidelity,school,numeric,calculated,"cpd_content_items_present,cpd_content_items_expected",divide,cpd_content_items_expected,,mean,skip,CPD session fidelity,Share of intended pedagogical content evidenced in CPD session records,TRUE,d_05,implementation_quality,last
+training_content_coverage,school,numeric,aggregate,"positive_discipline_covered,inclusive_education_covered,supportive_climate_covered",mean,,,last,skip,Training content coverage,Share of required inclusive-training content domains covered,TRUE,d_06,implementation_quality,last
+teacher_support_reach,school,numeric,simple,teachers_receiving_self_care_support,,,,sum,zero,Teacher support reach,Number of teachers receiving self-care or SEL support with referral access,TRUE,,,
+data_review_frequency,school,numeric,simple,data_review_meetings,,,,sum,zero,Data-review frequency,Number of structured school data-review meetings in the period,TRUE,,,
+infrastructure_quality_index,school,numeric,aggregate,"building_condition,classroom_adequacy,wash_functionality,physical_accessibility,learning_material_adequacy",standardized_mean,,,mean,skip,Infrastructure quality index,"Standardised composite of building, classroom, WASH, accessibility and material conditions",TRUE,,,
+aep_overage_enrolment,child,categorical,simple,aep_enrolled,,,,sum,skip,Over-age learners enrolled in AEP,Count of enumerator-confirmed over-age learners enrolled in the AEP,TRUE,d_01,implementation_quantity,last
+caregiver_sessions_completed,school,numeric,simple,caregiver_sessions_completed,,,,sum,zero,Caregiver programme completion,Number of caregivers completing the structured parenting or family-support programme,TRUE,d_04,implementation_quantity,last
+caregiver_session_reach,school,numeric,simple,caregivers_reached,,,,sum,zero,Caregiver support reach,Number of caregivers participating in structured caregiver-support sessions,TRUE,d_04,implementation_quantity,last
+caregiver_support_fidelity,school,numeric,calculated,caregiver_content_items_delivered,divide,caregiver_content_items_planned,,mean,skip,Caregiver-support fidelity,Share of intended caregiver-support content delivered,TRUE,d_04,implementation_quality,last
+child_home_support_improved,child,categorical,simple,home_learning_support,,,,mean,skip,Home learning support improved,Child reports improved learning or wellbeing support at home,TRUE,d_04,outcome,change_from_baseline
+pss_facilitator_training_days,teacher,numeric,simple,pss_facilitator_training_days,,,,sum,zero,PSS facilitator training days,Number of structured PSS facilitator training days completed,TRUE,d_07,implementation_quantity,last
+classroom_pss_wellbeing_improved,child,categorical,calculated,"baseline_wellbeing_score,current_wellbeing_score",increase,,,mean,skip,Wellbeing improved after classroom PSS,Improved wellbeing among children participating in classroom-based structured PSS,TRUE,d_07,outcome,change_from_baseline
+play_sessions_delivered,school,numeric,simple,play_sessions_delivered,,,,sum,zero,Structured play sessions delivered,Number of structured recreational and psychosocial play sessions delivered,TRUE,d_08,implementation_quantity,last
+play_quality_standard,school,categorical,calculated,"play_structured,play_goal_oriented,play_evidence_informed,play_targeted",count_at_least,3,,mean,skip,Structured play quality standard met,At least three of four quality attributes are met for structured play activities,TRUE,d_08,implementation_quality,last
+play_wellbeing_improved,child,categorical,calculated,"baseline_play_wellbeing,current_play_wellbeing",increase,,,mean,skip,Wellbeing improved after structured play,Self-rated wellbeing improved among children participating in structured play activities,TRUE,d_08,outcome,change_from_baseline

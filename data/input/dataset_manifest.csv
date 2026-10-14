@@ -1,0 +1,8 @@
+﻿file,level,grain,rows,columns,date_start,date_end
+school_master.csv,school,one row per school,38,13,,
+school_monthly.csv,school,one row per school-month,456,62,2025-09,2026-08
+teacher_master.csv,teacher,one row per teacher,542,8,,
+teacher_monthly.csv,teacher,one row per teacher-month,6504,33,2025-09,2026-08
+child_master.csv,child,one row per child,4290,16,,
+child_monthly.csv,child,one row per child-month,51480,12,2025-09,2026-08
+child_assessments.csv,child,one row per child-assessment round,8317,43,,

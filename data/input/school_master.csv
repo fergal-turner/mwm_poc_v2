@@ -1,0 +1,39 @@
+﻿country,admin0,admin1,admin2,admin3,location,school_id,school_type,programme_type,school_shift,latitude,longitude,programme_drivers
+Syria,Syria,Idlib,Idlib District 2,Community 16,urban,SY-SCH-001,formal_school,aep,morning,24.76611,34.51388,d_02|d_03|d_04|d_06
+Syria,Syria,Idlib,Idlib District 1,Community 07,urban,SY-SCH-002,temporary_learning_space,non_formal,morning,17.72492,32.15463,d_02|d_06
+Syria,Syria,Idlib,Idlib District 1,Community 14,rural,SY-SCH-003,formal_school,formal,morning,30.97957,38.73996,d_01|d_02|d_03|d_06
+Syria,Syria,Ar-Raqqa,Ar-Raqqa District 4,Community 08,urban,SY-SCH-004,temporary_learning_space,non_formal,afternoon,23.03722,40.82371,d_01|d_03|d_05|d_06
+Syria,Syria,Ar-Raqqa,Ar-Raqqa District 4,Community 06,urban,SY-SCH-005,formal_school,catch_up,morning,34.36953,41.85605,d_02|d_03|d_04|d_05
+Syria,Syria,Aleppo,Aleppo District 1,Community 12,urban,SY-SCH-006,formal_school,catch_up,afternoon,17.52592,26.54696,d_02|d_04|d_06
+Syria,Syria,Idlib,Idlib District 1,Community 05,urban,SY-SCH-007,formal_school,formal,morning,19.49758,37.17383,d_01|d_02|d_03|d_04|d_05|d_06
+Syria,Syria,Aleppo,Aleppo District 1,Community 05,rural,SY-SCH-008,temporary_learning_space,formal,morning,22.06955,29.32843,d_01|d_02|d_03|d_05|d_06
+Syria,Syria,Aleppo,Aleppo District 1,Community 09,urban,SY-SCH-009,formal_school,formal,morning,19.9868,25.42404,d_01|d_02|d_03|d_04|d_06
+Syria,Syria,Idlib,Idlib District 1,Community 06,urban,SY-SCH-010,community_space,catch_up,morning,17.04539,36.89677,d_01|d_02|d_03|d_05|d_06
+Syria,Syria,Ar-Raqqa,Ar-Raqqa District 1,Community 12,urban,SY-SCH-011,temporary_learning_space,formal,afternoon,11.68463,41.46421,d_01|d_03|d_04|d_05|d_06
+Syria,Syria,Idlib,Idlib District 1,Community 02,urban,SY-SCH-012,community_space,non_formal,morning,25.39278,29.89114,d_02|d_03|d_04|d_05|d_06
+Syria,Syria,Idlib,Idlib District 3,Community 13,rural,SY-SCH-013,formal_school,non_formal,morning,31.55437,39.04276,d_01|d_02|d_03|d_04|d_05|d_06
+Syria,Syria,Ar-Raqqa,Ar-Raqqa District 1,Community 06,rural,SY-SCH-014,formal_school,formal,afternoon,11.32279,31.16997,d_01|d_02|d_03|d_04|d_05|d_06
+Syria,Syria,Idlib,Idlib District 3,Community 06,rural,SY-SCH-015,community_space,catch_up,morning,16.94869,33.87602,d_02|d_03|d_04
+Syria,Syria,Ar-Raqqa,Ar-Raqqa District 1,Community 19,rural,SY-SCH-016,formal_school,non_formal,morning,18.93556,29.24924,d_01|d_03|d_05|d_06
+Syria,Syria,Aleppo,Aleppo District 1,Community 04,rural,SY-SCH-017,temporary_learning_space,formal,afternoon,20.05383,37.59696,d_01|d_04|d_05|d_06
+Syria,Syria,Ar-Raqqa,Ar-Raqqa District 1,Community 19,rural,SY-SCH-018,temporary_learning_space,aep,morning,20.02209,36.33954,d_02|d_03|d_04|d_06
+Syria,Syria,Idlib,Idlib District 3,Community 02,urban,SY-SCH-019,formal_school,catch_up,morning,30.66437,38.66365,d_01|d_03|d_04|d_05
+Syria,Syria,Aleppo,Aleppo District 2,Community 02,rural,SY-SCH-020,community_space,catch_up,afternoon,17.94289,39.42781,d_01|d_03|d_04
+Sudan,Sudan,Kassala,Kassala District 2,Community 16,rural,SU-SCH-001,formal_school,aep,morning,16.65858,31.48507,d_05|d_06|d_08
+Sudan,Sudan,Kassala,Kassala District 2,Community 13,rural,SU-SCH-002,formal_school,catch_up,morning,19.29856,31.03631,d_05|d_07|d_08
+Sudan,Sudan,Gedaref,Gedaref District 3,Community 06,rural,SU-SCH-003,temporary_learning_space,formal,morning,12.03042,27.77278,d_05|d_06|d_07
+Sudan,Sudan,Gedaref,Gedaref District 2,Community 15,urban,SU-SCH-004,formal_school,catch_up,morning,13.95978,38.98942,d_06|d_07|d_08
+Sudan,Sudan,Kassala,Kassala District 4,Community 18,urban,SU-SCH-005,formal_school,formal,afternoon,16.46054,40.14156,d_05|d_07|d_08
+Sudan,Sudan,White Nile,White Nile District 4,Community 13,rural,SU-SCH-006,formal_school,formal,afternoon,13.92531,35.02406,d_08
+Sudan,Sudan,Gedaref,Gedaref District 2,Community 09,rural,SU-SCH-007,temporary_learning_space,catch_up,afternoon,19.55271,35.24477,d_05|d_07|d_08
+Sudan,Sudan,White Nile,White Nile District 1,Community 17,rural,SU-SCH-008,formal_school,non_formal,afternoon,26.4281,31.59581,d_07|d_08
+Sudan,Sudan,Kassala,Kassala District 2,Community 12,urban,SU-SCH-009,formal_school,catch_up,morning,23.82903,43.72332,d_05|d_06|d_08
+Sudan,Sudan,White Nile,White Nile District 3,Community 19,rural,SU-SCH-010,community_space,aep,morning,16.62043,38.00853,d_06|d_07|d_08
+Sudan,Sudan,Gedaref,Gedaref District 2,Community 17,rural,SU-SCH-011,formal_school,aep,morning,30.56472,29.35144,d_05|d_08
+Sudan,Sudan,Kassala,Kassala District 2,Community 16,rural,SU-SCH-012,formal_school,non_formal,afternoon,15.63188,40.49972,d_05|d_06|d_07|d_08
+Sudan,Sudan,Gedaref,Gedaref District 3,Community 18,rural,SU-SCH-013,formal_school,formal,morning,16.4066,36.60349,d_06|d_08
+Sudan,Sudan,White Nile,White Nile District 2,Community 02,rural,SU-SCH-014,formal_school,aep,morning,28.56697,40.12331,d_05|d_06|d_07
+Sudan,Sudan,Gedaref,Gedaref District 4,Community 03,urban,SU-SCH-015,temporary_learning_space,formal,morning,32.81055,27.39068,d_07
+Sudan,Sudan,Gedaref,Gedaref District 4,Community 03,rural,SU-SCH-016,temporary_learning_space,non_formal,morning,19.03399,42.2672,d_07
+Sudan,Sudan,Gedaref,Gedaref District 3,Community 09,rural,SU-SCH-017,temporary_learning_space,catch_up,morning,26.02889,29.6116,d_05|d_06|d_07|d_08
+Sudan,Sudan,White Nile,White Nile District 1,Community 02,rural,SU-SCH-018,formal_school,formal,morning,13.94042,36.99316,d_05|d_06|d_07|d_08

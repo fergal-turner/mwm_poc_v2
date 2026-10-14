@@ -1,0 +1,15 @@
+id,type,columns,values,operation,bins,agg_method,description,active
+date_time,ordinal,_submission_time,,,,last,Submission or assessment date,True
+admin0,categorical,country,,,,first,Country,True
+admin1,categorical,admin1,,,,first,Region / governorate,True
+school_id,categorical,school_id,,,,first,School identifier,True
+class_id,categorical,class_id,,,,first,Class identifier,True
+teacher_id,categorical,teacher_id,,,,first,Teacher identifier,True
+child_id,categorical,child_id,,,,first,Child identifier,True
+sex,categorical,sex,"male,female",,,first,Child sex,True
+age,ordinal,age,,,,last,Child age in years,True
+age_group,derived,age,,bin,0:8:6-8|9:11:9-11|12:14:12-14,last,Age band,True
+round,categorical,round,"baseline,endline",,,first,Assessment round,True
+year_month,ordinal,year_month,,,,last,Calendar month (YYYY-MM),True
+displacement_status,categorical,displacement_status,"host_community,idp,returnee",,,first,Displacement category,True
+disability,categorical,disability_status,"disability,no_disability",,,first,Disability status,True
