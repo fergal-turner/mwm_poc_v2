@@ -65,32 +65,32 @@ def plotly_dotplot(
             line_color=Colors.grey_500,
         )
 
-    if quant_benchmark is not None:
-        fig.add_vline(
-            x=quant_benchmark,
-            line_dash="dash",
-            line_color=Colors.grey_500,
-        )
+    # if quant_benchmark is not None:
+    #     fig.add_vline(
+    #         x=quant_benchmark,
+    #         # line_dash="dash",
+    #         line_color=Colors.grey_500,
+    #     )
 
     fig.update_xaxes(
         title=quant_label or "Implementation Quantity",
         range=[0, quant_benchmark * 2.2 if quant_benchmark else None],
-        showline=False,
+        showline=True,
         zeroline=False,
     )
 
     fig.update_yaxes(
         title=qual_label or "Implementation Quality",
         range=[0, qual_benchmark * 2.2 if qual_benchmark else None],
-        showline=False,
+        showline=True,
         zeroline=False,
     )
 
     fig.update_layout(
         height=350,
-        margin=dict(l=20, r=20, t=20, b=20),
-        plot_bgcolor="white",
-        paper_bgcolor="white",
+        margin=dict(l=0, r=0, t=20, b=20),
+        plot_bgcolor="whitesmoke",
+        paper_bgcolor="whitesmoke",
         showlegend=False,
     )
 
@@ -125,6 +125,7 @@ def plot_dotplot(driver_df, qual_benchmark=None, quant_benchmark=None, qual_labe
     ax.spines[["top", "right"]].set_visible(False)
 
     return fig, ax
+
 
 def title_font(text, size=32):
     st.markdown(f'<p class="oswald" style="font-size:{size}px;">{text}</p>', unsafe_allow_html=True)
@@ -210,7 +211,7 @@ SCHOOL_OPTIONS.append('All Schools')
 SCHOOL_OPTIONS = sorted(SCHOOL_OPTIONS)
 SCHOOL = st.sidebar.selectbox("School", options=SCHOOL_OPTIONS)
 
-#==================MAIN APP==================================
+#==================MAIN APP===============================
 
 st.markdown(f'<p class="oswald" style="font-size:45px;">Implementation Monitoring for All Drivers</p>',
     unsafe_allow_html=True)
@@ -245,7 +246,6 @@ def get_driver_data(driver):
     driver_description = driver_meta.at[driver, 'description']
     return driver_df, quality_benchmark, quantity_benchmark, quality_label, quantity_label, driver_name, driver_description
 
-@st.cache_data
 def make_driver_plot(
     driver_df,
     quality_benchmark,

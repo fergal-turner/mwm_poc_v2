@@ -3,7 +3,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from matplotlib.colors import LinearSegmentedColormap
+import numpy as np
 import plotly.graph_objects as go
+import plotly.express as px
+
 
 from theme import Colors
 from db import load_data
@@ -73,6 +76,174 @@ def wide_table(table, level, binary = False):
 
     return wide
 
+
+def plot_cio_quadrants(cio_table, context):
+
+    cio_table_lowlow = cio_table[(cio_table["implementation_quality"] =="Low") & (cio_table["implementation_quantity"] == "Low")]
+    cio_table_lowhigh = cio_table[(cio_table["implementation_quality"] =="Low") & (cio_table["implementation_quantity"] == "High")]
+    cio_table_highlow = cio_table[(cio_table["implementation_quality"] =="High") & (cio_table["implementation_quantity"] == "Low")]
+    cio_table_highhigh = cio_table[(cio_table["implementation_quality"] =="High") & (cio_table["implementation_quantity"] == "High")]
+
+    cio_table_highlow["cio_diff"] = cio_table_highlow.apply(lambda row: row["outcome"] - cio_table_highlow[cio_table_highlow["context"] == "None"]["outcome"].mean(), axis=1)
+    cio_table_highhigh["cio_diff"] = cio_table_highhigh.apply(lambda row: row["outcome"] - cio_table_highhigh[cio_table_highhigh["context"] == "None"]["outcome"].mean(), axis=1)
+    cio_table_lowlow["cio_diff"] = cio_table_lowlow.apply(lambda row: row["outcome"] - cio_table_lowlow[cio_table_lowlow["context"] == "None"]["outcome"].mean(), axis=1)
+    cio_table_lowhigh["cio_diff"] = cio_table_lowhigh.apply(lambda row: row["outcome"] - cio_table_lowhigh[cio_table_lowhigh["context"] == "None"]["outcome"].mean(), axis=1)
+
+    df = pd.concat([cio_table_lowlow, cio_table_lowhigh, cio_table_highlow, cio_table_highhigh])
+
+    df = df[df["context"] == context].copy()
+
+    quadrants = {
+        ("Low", "High"): (-1, 1),
+        ("High", "High"): (1, 1),
+        ("Low", "Low"): (-1, -1),
+        ("High", "Low"): (1, -1),
+    }
+
+    max_schools = cio_table["schools"].max()
+
+    fig = go.Figure()
+
+    # Baseline boxes
+
+    if context != "None":
+
+        df_none = cio_table[cio_table["context"] == "None"]
+
+        none_min = df_none["outcome"].min()
+        none_max = df_none["outcome"].max()
+        
+        custom_scale = [
+            [0.0, Colors.medium_red],
+            [0.5, Colors.light_red],
+            [0.75, Colors.light_green],
+            [1.0, Colors.green],
+        ]
+
+        for _, baseline_row in df_none.iterrows():
+
+            quality = baseline_row["implementation_quality"]
+            frequency = baseline_row["implementation_quantity"]
+
+            none_outcome = baseline_row["outcome"]
+
+            none_scaled = 0.5 if none_max == none_min else (
+            (none_outcome - none_min) / (none_max - none_min)
+            )
+
+            color = px.colors.sample_colorscale(custom_scale, [none_scaled])[0]
+
+            x_dir, y_dir = quadrants[(quality, frequency)]
+
+            side = np.sqrt(baseline_row["schools"] / max_schools) * 0.9
+
+            x0 = -side if x_dir < 0 else 0
+            x1 = 0 if x_dir < 0 else side
+
+            y0 = -side if y_dir < 0 else 0
+            y1 = 0 if y_dir < 0 else side
+
+            fig.add_shape(type="rect", x0=x0, x1=x1, y0=y0, y1=y1,
+                          fillcolor="rgba(0,0,0,0)",
+                          line=dict(color=color, width=3),
+                          layer="below",
+                          )
+
+
+
+
+    custom_scale = [
+        [0.0, Colors.medium_red],
+        [0.5, Colors.light_red],
+        [0.75, Colors.light_green],
+        [1.0, Colors.green],
+    ]
+
+    for _, row in df.iterrows():
+
+        quality = row["implementation_quality"]
+        frequency = row["implementation_quantity"]
+
+        x_dir, y_dir = quadrants[(quality, frequency)]
+
+        side = np.sqrt(row["schools"] / max_schools) * 0.9
+
+        if context == "None":
+            outcome = row["outcome"]
+            outcome_min = df["outcome"].min()
+            outcome_max = df["outcome"].max()
+        else:
+            outcome = row["cio_diff"]
+            outcome_min = df["cio_diff"].min()
+            outcome_max = df["cio_diff"].max()
+
+        outcome_scaled = 0.5 if outcome_max == outcome_min else (
+            (outcome - outcome_min) / (outcome_max - outcome_min)
+        )
+
+        color = px.colors.sample_colorscale(custom_scale, [outcome_scaled])[0]
+
+        x0 = -side if x_dir < 0 else 0
+        x1 = 0 if x_dir < 0 else side
+
+        y0 = -side if y_dir < 0 else 0
+        y1 = 0 if y_dir < 0 else side
+
+        fig.add_shape(type="rect", x0=x0, x1=x1, y0=y0, y1=y1,
+                      fillcolor=color, line_width=0, layer="below")
+
+        width = abs(x1 - x0)
+        height = abs(y1 - y0)
+
+        if min(width, height) < 0.35:
+
+            text_x = x1 + 0.05 if x_dir > 0 else x0 - 0.05
+            text_y = (y0 + y1) / 2
+            xanchor = "left" if x_dir > 0 else "right"
+
+            fig.add_annotation(
+                x=text_x, y=text_y,
+                text=f"<b>{row['schools']}</b><br>schools<br>{outcome:.02f}",
+                showarrow=True, arrowhead=0, ax=0, ay=0,
+                xanchor=xanchor, yanchor="middle",
+                align="left",
+                font=dict(size=12, color="black")
+            )
+
+        else:
+
+            fig.add_annotation(
+                x=(x0 + x1) / 2, y=(y0 + y1) / 2,
+                text=f"<b>{row['schools']}</b><br>schools<br>{outcome:.02f}",
+                showarrow=False,
+                xanchor="center", yanchor="middle",
+                align="center",
+                font=dict(size=12, color="black")
+            )
+
+    fig.add_shape(type="line", x0=-1.1, x1=1.1, y0=0, y1=0,
+                  line=dict(color=Colors.grey_700, width=1), layer="above")
+
+    fig.add_shape(type="line", x0=0, x1=0, y0=-1.1, y1=1.1,
+                  line=dict(color=Colors.grey_700, width=1), layer="above")
+
+    fig.add_annotation(x=-1.05, y=1.05, text="Low quality<br>High frequency", showarrow=False, align="left")
+
+    fig.add_annotation(x=1.05, y=1.05, text="High quality<br>High frequency", showarrow=False, align="right")
+
+    fig.add_annotation(x=-1.05, y=-1.05, text="Low quality<br>Low frequency", showarrow=False, align="left")
+
+    fig.add_annotation(x=1.05, y=-1.05, text="High quality<br>Low frequency", showarrow=False, align="right")
+
+    fig.update_layout(showlegend=False, plot_bgcolor="white", paper_bgcolor="white",
+                      margin=dict(l=20, r=20, t=20, b=20), height=450)
+
+    fig.update_xaxes(visible=False, range=[-1.15, 1.15], fixedrange=True)
+
+    fig.update_yaxes(visible=False, range=[-1.15, 1.15], scaleanchor="x", fixedrange=True)
+
+    return fig
+
 def plot_cio_dotplot(cio_table, context):
     fig, ax = plt.subplots(figsize=(6, 3), dpi=120)
     df = cio_table[cio_table['context'] == context].copy()
@@ -97,10 +268,6 @@ def plot_cio_dotplot(cio_table, context):
     ax.set_xticks([])
     ax.set_yticks([])
 
-    # ax.add_patch(patches.Rectangle((-0.5, -.5), 1, 1, linewidth=0, facecolor=Colors.light_red, zorder=1 ))
-    # ax.add_patch(patches.Rectangle((-0.5, .5), 1, 1, linewidth=0, facecolor=Colors.light_yellow, zorder=1 ))
-    # ax.add_patch(patches.Rectangle((.5, .5), 1, 1, linewidth=0, facecolor=Colors.light_green, zorder=1 ))
-    # ax.add_patch(patches.Rectangle((.5, -.5), 1, 1, linewidth=0, facecolor=Colors.light_yellow, zorder=1 ))
 
     ax.text(-0.48, -0.47, 'Low quality, \nLow frequency', fontsize=8, va='bottom', color=Colors.grey_900)
     ax.text(-0.48, 1.47, 'Low quality, \nHigh frequency', fontsize=8, va='top', color=Colors.grey_900)
@@ -327,6 +494,9 @@ outcome_variable = outcome_variable.replace("_", " ").title()
 #----------- Sidebar Selecter -------------------
 
 context_options = cio_table['context'].unique()
+context_options = context_options.tolist()
+if "None" in context_options:
+    context_options.remove("None")
 
 st.sidebar.markdown('<p class="oswald" style="font-size:24px;">Select Context Variable</p>',
     unsafe_allow_html=True)
@@ -388,11 +558,9 @@ section_divider(0)
 title_font("Overall Averages", size=28)
 st.text("This shows how implementation impacts outcomes when no context variables are considered")
 
-fig, ax= plot_cio_dotplot(cio_table, "None")
+fig = plot_cio_quadrants(cio_table, "None")
 
-with st.container(border=False):
-    st.pyplot(fig)
-plt.close(fig)
+st.plotly_chart(fig)
 
 st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
 
@@ -406,16 +574,11 @@ simple_divider(10)
 #------------ Context-Specific Heatmap -------------------
 context = sidebar.replace(" ", "_").lower()
 
-fig, ax = plot_cio_dotplot(filtered_cio_table, context)
-fig.patch.set_facecolor("#FFFFFF")
-ax.set_facecolor("#FFFFFF")
+fig = plot_cio_quadrants(cio_table, context)
 
 title_font(f"Context: {sidebar}", size=28)
 
-with st.container():
-    st.pyplot(fig)
-plt.close(fig)
-
+st.plotly_chart(fig)
 
 match = narratives.loc[narratives['table_name'] == context, 'narrative']
 narrative = match.values[0] if len(match) else ""
