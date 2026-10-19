@@ -435,7 +435,7 @@ st.sidebar.markdown('<p class="oswald" style="font-size:24px;">Select Country</p
     unsafe_allow_html=True)
 
 COUNTRY = st.sidebar.selectbox("Country", options=COUNTRY_OPTIONS)
-
+time_0 = time.perf_counter()
 school_table_all = load_data(
     "indicator_values", COUNTRY,
     columns="school_id,driver,variable,variable_level,value,value_binary",
@@ -445,6 +445,8 @@ cio_table_all = load_data(
     columns="driver,context,implementation_quantity,implementation_quality,outcome,schools",
 )
 narratives_all = load_data("narratives", COUNTRY, columns="driver,table_name,narrative")
+time_1 = time.perf_counter()
+st.text(f"Time taken to load data: {time_1 - time_0}")
 
 if school_table_all.empty or cio_table_all.empty or narratives_all.empty:
     st.warning(f"No complete results for {COUNTRY.title()} yet. Run the pipeline (including build_cmos) first.")
@@ -558,9 +560,15 @@ section_divider(0)
 title_font("Overall Averages", size=28)
 st.text("This shows how implementation impacts outcomes when no context variables are considered")
 
+time_0 = time.perf_counter()
 fig = plot_cio_quadrants(cio_table, "None")
+time_1 = time.perf_counter()
+st.text(f"Time taken to generate heatmap: {time_1 - time_0}")
 
+time_0 = time.perf_counter()
 st.plotly_chart(fig)
+time_1 = time.perf_counter()
+st.text(f"Time taken to render heatmap: {time_1 - time_0}")
 
 st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
 
@@ -574,11 +582,17 @@ simple_divider(10)
 #------------ Context-Specific Heatmap -------------------
 context = sidebar.replace(" ", "_").lower()
 
+time_0 = time.perf_counter()
 fig = plot_cio_quadrants(cio_table, context)
+time_1 = time.perf_counter()
+st.text(f"Time taken to generate context-specific heatmap: {time_1 - time_0}")
 
 title_font(f"Context: {sidebar}", size=28)
 
+time_0 = time.perf_counter()
 st.plotly_chart(fig)
+time_1 = time.perf_counter()
+st.text(f"Time taken to render context-specific heatmap: {time_1 - time_0}")
 
 match = narratives.loc[narratives['table_name'] == context, 'narrative']
 narrative = match.values[0] if len(match) else ""
@@ -591,6 +605,7 @@ section_divider(10)
 
 title_font("Data for all schools", size=28)
 
+time_0 = time.perf_counter()
 numeric_cols = values_wide.select_dtypes("number").columns
 diffs = values_wide[numeric_cols].subtract(values_wide[numeric_cols].iloc[0])
 
@@ -605,6 +620,8 @@ st.table(
         })
         .format("{:.2f}")
             )
+time_1 = time.perf_counter()
+st.text(f"Time taken to generate bottom summary table: {time_1 - time_0}")
 
 def logout():
     st.session_state.clear()
